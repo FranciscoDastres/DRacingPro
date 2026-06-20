@@ -1,8 +1,15 @@
-import type { Appointment, AvailabilitySlot } from '@dracing/contracts';
+import type {
+  AdminAppointment,
+  Appointment,
+  AvailabilitySlot,
+} from '@dracing/contracts';
 
 import { buildApp } from '../src/app.js';
 import { SessionService } from '../src/modules/auth/application/session-service.js';
-import { MemoryAuthRepository } from './helpers/memory-auth-repository.js';
+import {
+  MemoryAuthRepository,
+  testUser,
+} from './helpers/memory-auth-repository.js';
 
 const serviceId = '984a5c7b-2163-47d7-964d-e882388e1a2c';
 const motorcycleId = '0ed4fc0c-ea93-4dc7-9af0-cba493e67491';
@@ -16,6 +23,14 @@ const appointment: Appointment = {
   motorcycle: { id: motorcycleId, label: 'La Roja' },
   services: [{ id: serviceId, name: 'Mantención básica' }],
   status: 'requested',
+};
+const adminAppointment: AdminAppointment = {
+  ...appointment,
+  customer: {
+    displayName: testUser.displayName,
+    email: testUser.email,
+    id: testUser.id,
+  },
 };
 
 describe('appointment routes', () => {
@@ -51,18 +66,44 @@ describe('appointment routes', () => {
     expect(response.json()).toEqual(appointment);
     await app.close();
   });
+
+  it('allows only administrators to read the workshop agenda', async () => {
+    const customerApp = await createApp();
+    const forbidden = await customerApp.inject({
+      headers: { cookie: 'drp_session=test-session' },
+      method: 'GET',
+      url: '/v1/admin/appointments',
+    });
+    expect(forbidden.statusCode).toBe(403);
+    await customerApp.close();
+
+    const adminApp = await createApp(true);
+    const accepted = await adminApp.inject({
+      headers: { cookie: 'drp_session=test-session' },
+      method: 'GET',
+      url: '/v1/admin/appointments',
+    });
+    expect(accepted.statusCode).toBe(200);
+    expect(accepted.json()).toEqual([adminAppointment]);
+    await adminApp.close();
+  });
 });
 
-async function createApp() {
-  const sessions = new SessionService(new MemoryAuthRepository());
+async function createApp(admin = false) {
+  const authRepository = new MemoryAuthRepository();
+  if (admin) authRepository.user = { ...testUser, role: 'admin' };
+  const sessions = new SessionService(authRepository);
   return buildApp({
     appOrigin: 'http://localhost:5173',
     appointments: {
       appOrigin: 'http://localhost:5173',
       appointments: {
+        addMotorcycleUpdate: async () => ({ id: 'update-id' }),
         create: async () => appointment,
         getAvailability: async () => [slot],
         list: async () => [],
+        listAdmin: async () => [adminAppointment],
+        updateStatus: async () => appointment,
       },
       sessions,
     },
