@@ -14,7 +14,11 @@ export function AppShell() {
   const navigate = useNavigate();
   const visibleNavigation =
     user?.role === 'admin'
-      ? [...navigation, { label: 'Administración', to: '/app/admin' }]
+      ? [
+          ...navigation,
+          { label: 'Administración', to: '/app/admin' },
+          { label: 'Configuración', to: '/app/admin/settings' },
+        ]
       : navigation;
 
   const handleLogout = async () => {
