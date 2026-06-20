@@ -19,6 +19,10 @@ import {
   serviceRoutes,
   type ServiceRoutesOptions,
 } from './modules/services/presentation/routes.js';
+import {
+  type WorkshopAdminRoutesOptions,
+  workshopAdminRoutes,
+} from './modules/workshop/presentation/routes.js';
 
 export interface BuildAppOptions {
   appOrigin: string;
@@ -29,6 +33,7 @@ export interface BuildAppOptions {
   logger?: boolean;
   motorcycles?: MotorcycleRoutesOptions;
   services?: ServiceRoutesOptions;
+  workshopAdmin?: WorkshopAdminRoutesOptions;
 }
 
 export async function buildApp({
@@ -40,6 +45,7 @@ export async function buildApp({
   logger = true,
   motorcycles,
   services,
+  workshopAdmin,
 }: BuildAppOptions): Promise<FastifyInstance> {
   const app = Fastify({
     disableRequestLogging: false,
@@ -70,6 +76,12 @@ export async function buildApp({
   }
   if (services) {
     await app.register(serviceRoutes, { ...services, prefix: '/v1/services' });
+  }
+  if (workshopAdmin) {
+    await app.register(workshopAdminRoutes, {
+      ...workshopAdmin,
+      prefix: '/v1/admin/workshop',
+    });
   }
 
   app.get('/api', async () => ({
