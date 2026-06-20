@@ -12,6 +12,10 @@ const navigation = [
 export function AppShell() {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
+  const visibleNavigation =
+    user?.role === 'admin'
+      ? [...navigation, { label: 'Administración', to: '/app/admin' }]
+      : navigation;
 
   const handleLogout = async () => {
     await logout();
@@ -49,7 +53,7 @@ export function AppShell() {
 
       <div className="mx-auto grid max-w-7xl lg:grid-cols-[220px_1fr]">
         <nav className="flex gap-2 overflow-x-auto border-b border-white/10 px-5 py-3 lg:min-h-[calc(100vh-73px)] lg:flex-col lg:border-r lg:border-b-0 lg:px-4 lg:py-6">
-          {navigation.map((item) => (
+          {visibleNavigation.map((item) => (
             <NavLink
               className={({ isActive }) =>
                 `rounded-lg px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition ${
