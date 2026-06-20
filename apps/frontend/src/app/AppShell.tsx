@@ -57,7 +57,10 @@ export function AppShell() {
       </header>
 
       <div className="mx-auto grid max-w-7xl lg:grid-cols-[220px_1fr]">
-        <nav className="flex gap-2 overflow-x-auto border-b border-white/10 px-5 py-3 lg:min-h-[calc(100vh-73px)] lg:flex-col lg:border-r lg:border-b-0 lg:px-4 lg:py-6">
+        <nav
+          aria-label="Navegación principal"
+          className="flex gap-2 overflow-x-auto border-b border-white/10 px-5 py-3 lg:min-h-[calc(100vh-73px)] lg:flex-col lg:border-r lg:border-b-0 lg:px-4 lg:py-6"
+        >
           {visibleNavigation.map((item) => (
             <NavLink
               className={({ isActive }) =>
