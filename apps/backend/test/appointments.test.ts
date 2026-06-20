@@ -2,6 +2,7 @@ import type {
   AdminAppointment,
   Appointment,
   AvailabilitySlot,
+  CustomerMotorcycleUpdate,
 } from '@dracing/contracts';
 
 import { buildApp } from '../src/app.js';
@@ -31,6 +32,14 @@ const adminAppointment: AdminAppointment = {
     email: testUser.email,
     id: testUser.id,
   },
+};
+const motorcycleUpdate: CustomerMotorcycleUpdate = {
+  appointmentId: appointment.id,
+  createdAt: '2027-01-15T13:15:00.000Z',
+  id: 'b05fc748-08f8-42cb-ba2a-ac4a09c6386b',
+  message: 'Diagnóstico iniciado',
+  motorcycleLabel: appointment.motorcycle.label,
+  progressStatus: 'diagnosing',
 };
 
 describe('appointment routes', () => {
@@ -87,6 +96,18 @@ describe('appointment routes', () => {
     expect(accepted.json()).toEqual([adminAppointment]);
     await adminApp.close();
   });
+
+  it('returns customer-visible motorcycle updates', async () => {
+    const app = await createApp();
+    const response = await app.inject({
+      headers: { cookie: 'drp_session=test-session' },
+      method: 'GET',
+      url: '/v1/notifications',
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual([motorcycleUpdate]);
+    await app.close();
+  });
 });
 
 async function createApp(admin = false) {
@@ -101,8 +122,13 @@ async function createApp(admin = false) {
         addMotorcycleUpdate: async () => ({ id: 'update-id' }),
         create: async () => appointment,
         getAvailability: async () => [slot],
+        getTimeline: async () => ({
+          appointment,
+          updates: [motorcycleUpdate],
+        }),
         list: async () => [],
         listAdmin: async () => [adminAppointment],
+        listCustomerUpdates: async () => [motorcycleUpdate],
         updateStatus: async () => appointment,
       },
       sessions,
