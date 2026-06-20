@@ -3,6 +3,10 @@ import cookie from '@fastify/cookie';
 import Fastify, { type FastifyInstance } from 'fastify';
 
 import {
+  appointmentRoutes,
+  type AppointmentRoutesOptions,
+} from './modules/appointments/presentation/routes.js';
+import {
   authRoutes,
   type AuthRoutesOptions,
 } from './modules/auth/presentation/routes.js';
@@ -18,6 +22,7 @@ import {
 
 export interface BuildAppOptions {
   appOrigin: string;
+  appointments?: AppointmentRoutesOptions;
   auth?: AuthRoutesOptions;
   checkDatabase: () => Promise<void>;
   cookieSecret?: string;
@@ -28,6 +33,7 @@ export interface BuildAppOptions {
 
 export async function buildApp({
   appOrigin,
+  appointments,
   auth,
   checkDatabase,
   cookieSecret = 'test-cookie-secret-must-have-32-characters',
@@ -53,6 +59,9 @@ export async function buildApp({
   });
 
   if (auth) await app.register(authRoutes, { ...auth, prefix: '/v1/auth' });
+  if (appointments) {
+    await app.register(appointmentRoutes, { ...appointments, prefix: '/v1' });
+  }
   if (motorcycles) {
     await app.register(motorcycleRoutes, {
       ...motorcycles,
