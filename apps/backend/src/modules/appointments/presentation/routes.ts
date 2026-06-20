@@ -23,7 +23,7 @@ const availabilityQuerySchema = z.object({
 
 export interface AppointmentRoutesOptions {
   appOrigin: string;
-  appointments: AppointmentService;
+  appointments: Pick<AppointmentService, 'create' | 'getAvailability' | 'list'>;
   sessions: SessionService;
 }
 
