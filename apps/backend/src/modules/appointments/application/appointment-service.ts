@@ -1,8 +1,11 @@
 import { TZDate } from '@date-fns/tz';
 import type {
+  AdminAppointment,
   Appointment,
   AvailabilitySlot,
+  CreateMotorcycleStatusUpdateInput,
   CreateAppointmentInput,
+  UpdateAppointmentStatusInput,
 } from '@dracing/contracts';
 import type { DatabaseClient } from '@dracing/database';
 
@@ -198,10 +201,112 @@ export class AppointmentService {
     });
     return appointments.map(mapAppointment);
   }
+
+  async listAdmin(): Promise<AdminAppointment[]> {
+    const appointments = await this.database.appointments.findMany({
+      include: { ...appointmentInclude, users: true },
+      orderBy: { starts_at: 'asc' },
+      where: {
+        status: { in: [...ACTIVE_STATUSES] },
+        starts_at: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+      },
+    });
+
+    return appointments.map((appointment) => ({
+      ...mapAppointment(appointment),
+      customer: {
+        displayName: appointment.users.display_name,
+        email: appointment.users.email,
+        id: appointment.users.id,
+      },
+    }));
+  }
+
+  async updateStatus(
+    adminUserId: string,
+    appointmentId: string,
+    input: UpdateAppointmentStatusInput,
+  ): Promise<Appointment> {
+    return this.database.$transaction(async (transaction) => {
+      const current = await transaction.appointments.findUnique({
+        where: { id: appointmentId },
+      });
+      if (!current) throw new AppointmentInputError('appointment_not_found');
+      if (
+        !ALLOWED_STATUS_TRANSITIONS[current.status].some(
+          (status: Appointment['status']) => status === input.status,
+        )
+      ) {
+        throw new AppointmentTransitionError();
+      }
+
+      const updated = await transaction.appointments.update({
+        data: {
+          ...(input.status === 'cancelled' && { cancelled_at: new Date() }),
+          ...(input.status === 'cancelled' && {
+            cancellation_reason: input.reason ?? 'Cancelada por administración',
+          }),
+          status: input.status,
+          version: { increment: 1 },
+        },
+        include: appointmentInclude,
+        where: { id: appointmentId, version: current.version },
+      });
+      await transaction.appointment_status_history.create({
+        data: {
+          appointment_id: appointmentId,
+          changed_by_user_id: adminUserId,
+          from_status: current.status,
+          reason: input.reason ?? null,
+          to_status: input.status,
+        },
+      });
+      return mapAppointment(updated);
+    });
+  }
+
+  async addMotorcycleUpdate(
+    adminUserId: string,
+    appointmentId: string,
+    input: CreateMotorcycleStatusUpdateInput,
+  ): Promise<{ id: string }> {
+    const appointment = await this.database.appointments.findUnique({
+      select: { id: true },
+      where: { id: appointmentId },
+    });
+    if (!appointment) throw new AppointmentInputError('appointment_not_found');
+
+    return this.database.motorcycle_status_updates.create({
+      data: {
+        appointment_id: appointmentId,
+        created_by_user_id: adminUserId,
+        customer_visible: input.customerVisible,
+        message: input.message ?? null,
+        odometer_km: input.odometerKm ?? null,
+        progress_status: input.progressStatus,
+      },
+      select: { id: true },
+    });
+  }
 }
 
 export class AppointmentConflictError extends Error {}
 export class AppointmentInputError extends Error {}
+export class AppointmentTransitionError extends Error {}
+
+const ALLOWED_STATUS_TRANSITIONS = {
+  cancelled: [],
+  checked_in: ['in_service', 'cancelled'],
+  completed: [],
+  confirmed: ['checked_in', 'cancelled', 'no_show'],
+  in_service: ['ready'],
+  no_show: [],
+  ready: ['completed'],
+  requested: ['confirmed', 'cancelled'],
+} as const satisfies Record<
+  Appointment['status'],
+  readonly Appointment['status'][]
+>;
 
 const appointmentInclude = {
   appointment_services: true,
