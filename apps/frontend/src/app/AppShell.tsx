@@ -5,6 +5,7 @@ import { useAuth } from '../features/auth/auth-context';
 const navigation = [
   { label: 'Resumen', to: '/app' },
   { label: 'Agenda', to: '/app/appointments' },
+  { label: 'Novedades', to: '/app/notifications' },
   { label: 'Mis motos', to: '/app/motorcycles' },
   { label: 'Servicios', to: '/app/services' },
 ];
