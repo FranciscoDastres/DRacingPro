@@ -90,6 +90,12 @@ export const CreateAppointmentSchema = z.object({
 
 export type CreateAppointmentInput = z.infer<typeof CreateAppointmentSchema>;
 
+export const CancelAppointmentSchema = z.object({
+  reason: z.string().trim().min(3).max(500).optional(),
+});
+
+export type CancelAppointmentInput = z.infer<typeof CancelAppointmentSchema>;
+
 export const AppointmentSchema = z.object({
   endsAt: z.iso.datetime(),
   id: z.uuid(),
