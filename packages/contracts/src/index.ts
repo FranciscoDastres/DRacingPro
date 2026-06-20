@@ -68,3 +68,52 @@ export const ServiceSchema = z.object({
 });
 
 export type Service = z.infer<typeof ServiceSchema>;
+
+export const AvailabilityRequestSchema = z.object({
+  date: z.iso.date(),
+  serviceIds: z.array(z.uuid()).min(1).max(10),
+});
+
+export const AvailabilitySlotSchema = z.object({
+  endsAt: z.iso.datetime(),
+  startsAt: z.iso.datetime(),
+});
+
+export type AvailabilityRequest = z.infer<typeof AvailabilityRequestSchema>;
+export type AvailabilitySlot = z.infer<typeof AvailabilitySlotSchema>;
+
+export const CreateAppointmentSchema = z.object({
+  motorcycleId: z.uuid(),
+  serviceIds: z.array(z.uuid()).min(1).max(10),
+  startsAt: z.iso.datetime(),
+});
+
+export type CreateAppointmentInput = z.infer<typeof CreateAppointmentSchema>;
+
+export const AppointmentSchema = z.object({
+  endsAt: z.iso.datetime(),
+  id: z.uuid(),
+  motorcycle: z.object({
+    id: z.uuid(),
+    label: z.string(),
+  }),
+  services: z.array(
+    z.object({
+      id: z.uuid(),
+      name: z.string(),
+    }),
+  ),
+  startsAt: z.iso.datetime(),
+  status: z.enum([
+    'requested',
+    'confirmed',
+    'checked_in',
+    'in_service',
+    'ready',
+    'completed',
+    'cancelled',
+    'no_show',
+  ]),
+});
+
+export type Appointment = z.infer<typeof AppointmentSchema>;
