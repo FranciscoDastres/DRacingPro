@@ -31,8 +31,9 @@ motos, catálogo, agendamiento y operación base del panel administrador
 implementados. La edición de catálogo, horarios y excepciones también está
 operativa. Timeline cliente y novedades dentro de la aplicación también están
 implementados. La cancelación de citas por el cliente ya aplica propiedad,
-transiciones, auditoría y validación E2E en móvil. Quedan pendientes la vista
-diaria/semanal del administrador, reasignación y automatización E2E durable.**
+transiciones, auditoría y validación E2E en móvil. La agenda administrativa ya
+ofrece vistas diaria y semanal con rangos calculados en la zona del taller.
+Quedan pendientes la reasignación y automatización E2E durable.**
 
 - Cliente: onboarding, motos, disponibilidad, reserva, cancelación e historial.
 - Cliente: timeline del estado de la moto y notificaciones.
