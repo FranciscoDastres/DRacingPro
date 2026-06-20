@@ -26,6 +26,10 @@ puede producir reservas incompatibles.
 
 ## Fase 3 — Panel cliente y admin
 
+**Estado: en progreso desde el 20 de junio de 2026. Panel cliente base,
+navegación, motos y catálogo implementados; agenda y panel administrador siguen
+pendientes.**
+
 - Cliente: onboarding, motos, disponibilidad, reserva, cancelación e historial.
 - Cliente: timeline del estado de la moto y notificaciones.
 - Admin: agenda diaria/semanal, confirmación, reasignación y estados.
