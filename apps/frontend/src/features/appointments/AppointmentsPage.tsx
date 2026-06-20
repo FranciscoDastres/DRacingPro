@@ -21,6 +21,10 @@ export function AppointmentsPage() {
   const [serviceIds, setServiceIds] = useState<string[]>([]);
   const [date, setDate] = useState(getTomorrow());
   const [selectedSlot, setSelectedSlot] = useState('');
+  const [cancellingAppointmentId, setCancellingAppointmentId] = useState<
+    string | null
+  >(null);
+  const [cancellationReason, setCancellationReason] = useState('');
 
   const motorcycles = useQuery({
     queryFn: () => apiClient.get<Motorcycle[]>('/v1/motorcycles'),
@@ -52,6 +56,27 @@ export function AppointmentsPage() {
       }),
     onSuccess: async () => {
       setSelectedSlot('');
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['appointments'] }),
+        queryClient.invalidateQueries({ queryKey: ['availability'] }),
+      ]);
+    },
+  });
+  const cancelAppointment = useMutation({
+    mutationFn: ({
+      appointmentId,
+      reason,
+    }: {
+      appointmentId: string;
+      reason?: string;
+    }) =>
+      apiClient.patch<Appointment>(
+        `/v1/appointments/${appointmentId}/cancel`,
+        reason ? { reason } : {},
+      ),
+    onSuccess: async () => {
+      setCancellationReason('');
+      setCancellingAppointmentId(null);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['appointments'] }),
         queryClient.invalidateQueries({ queryKey: ['availability'] }),
@@ -255,7 +280,89 @@ export function AppointmentsPage() {
                 >
                   Ver avance →
                 </Link>
+                {isCustomerCancellable(item) && (
+                  <button
+                    aria-controls={`cancel-appointment-${item.id}`}
+                    aria-expanded={cancellingAppointmentId === item.id}
+                    aria-label={`Cancelar cita de ${item.motorcycle.label}`}
+                    className="text-primary hover:text-danger mt-2 ml-4 text-xs font-semibold"
+                    onClick={() => {
+                      cancelAppointment.reset();
+                      setCancellationReason('');
+                      setCancellingAppointmentId(item.id);
+                    }}
+                    type="button"
+                  >
+                    Cancelar cita
+                  </button>
+                )}
               </div>
+
+              {cancellingAppointmentId === item.id && (
+                <div
+                  className="bg-background basis-full rounded-xl border border-white/10 p-4 text-left"
+                  id={`cancel-appointment-${item.id}`}
+                >
+                  <label
+                    className="text-sm font-semibold"
+                    htmlFor={`cancellation-reason-${item.id}`}
+                  >
+                    Motivo de cancelación (opcional)
+                  </label>
+                  <input
+                    className="bg-surface focus:border-primary mt-3 w-full rounded-lg border border-white/10 px-3 py-2 text-sm outline-none"
+                    id={`cancellation-reason-${item.id}`}
+                    maxLength={500}
+                    onChange={(event) =>
+                      setCancellationReason(event.target.value)
+                    }
+                    placeholder="Ej. Cambio de planes"
+                    value={cancellationReason}
+                  />
+                  <p className="text-muted mt-2 text-xs">
+                    Si indicas un motivo, debe tener al menos 3 caracteres.
+                  </p>
+                  {cancelAppointment.isError && (
+                    <p className="text-primary mt-3 text-sm" role="alert">
+                      No fue posible cancelar la cita. Actualiza la agenda e
+                      inténtalo nuevamente.
+                    </p>
+                  )}
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button
+                      className="bg-primary rounded-lg px-4 py-2 text-xs font-bold text-white disabled:opacity-40"
+                      disabled={
+                        cancelAppointment.isPending ||
+                        isInvalidCancellationReason(cancellationReason)
+                      }
+                      onClick={() => {
+                        const reason = cancellationReason.trim();
+                        cancelAppointment.mutate({
+                          appointmentId: item.id,
+                          ...(reason && { reason }),
+                        });
+                      }}
+                      type="button"
+                    >
+                      {cancelAppointment.isPending
+                        ? 'Cancelando…'
+                        : 'Confirmar cancelación'}
+                    </button>
+                    <button
+                      className="text-muted hover:text-foreground rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold"
+                      disabled={cancelAppointment.isPending}
+                      onClick={() => {
+                        cancelAppointment.reset();
+                        setCancellationReason('');
+                        setCancellingAppointmentId(null);
+                      }}
+                      type="button"
+                    >
+                      Conservar cita
+                    </button>
+                  </div>
+                </div>
+              )}
             </article>
           ))}
         </div>
@@ -266,6 +373,19 @@ export function AppointmentsPage() {
 
 function getTomorrow(): string {
   return new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+function isCustomerCancellable(appointment: Appointment): boolean {
+  return (
+    (appointment.status === 'requested' ||
+      appointment.status === 'confirmed') &&
+    new Date(appointment.startsAt).getTime() > Date.now()
+  );
+}
+
+function isInvalidCancellationReason(reason: string): boolean {
+  const length = reason.trim().length;
+  return length > 0 && length < 3;
 }
 
 function statusLabel(status: Appointment['status']): string {
