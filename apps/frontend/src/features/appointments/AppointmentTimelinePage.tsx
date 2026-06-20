@@ -20,6 +20,20 @@ const progressLabels: Record<
   waiting_approval: 'Esperando aprobación',
 };
 
+const appointmentStatusLabels: Record<
+  AppointmentTimeline['appointment']['status'],
+  string
+> = {
+  cancelled: 'Cancelada',
+  checked_in: 'Moto recibida',
+  completed: 'Completada',
+  confirmed: 'Confirmada',
+  in_service: 'En servicio',
+  no_show: 'No asistió',
+  ready: 'Lista para retiro',
+  requested: 'Solicitud enviada',
+};
+
 export function AppointmentTimelinePage() {
   const { id } = useParams<{ id: string }>();
   const timeline = useQuery({
@@ -73,7 +87,7 @@ export function AppointmentTimelinePage() {
             </p>
           </div>
           <span className="bg-accent/10 text-accent h-fit rounded-full px-3 py-1 text-xs font-semibold">
-            {appointment.status.replace('_', ' ')}
+            {appointmentStatusLabels[appointment.status]}
           </span>
         </div>
 
