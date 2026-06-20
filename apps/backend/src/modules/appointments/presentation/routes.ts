@@ -1,4 +1,5 @@
 import {
+  AdminAppointmentFiltersSchema,
   AvailabilityRequestSchema,
   CancelAppointmentSchema,
   CreateMotorcycleStatusUpdateSchema,
@@ -25,6 +26,11 @@ const availabilityQuerySchema = z.object({
   serviceIds: z.string(),
 });
 const appointmentParamsSchema = z.object({ id: z.uuid() });
+const adminAppointmentsQuerySchema = z.object({
+  from: z.string().optional(),
+  statuses: z.string().optional(),
+  to: z.string().optional(),
+});
 
 export interface AppointmentRoutesOptions {
   appOrigin: string;
@@ -157,7 +163,27 @@ export const appointmentRoutes: FastifyPluginAsync<
     if (!user) return;
     if (user.role !== 'admin')
       return reply.status(403).send({ error: 'forbidden' });
-    return reply.send(await options.appointments.listAdmin());
+
+    const query = adminAppointmentsQuerySchema.safeParse(request.query);
+    if (!query.success) {
+      return reply.status(400).send({ error: 'validation_error' });
+    }
+    const hasFilters = query.data.from || query.data.to || query.data.statuses;
+    if (!hasFilters) {
+      return reply.send(await options.appointments.listAdmin());
+    }
+
+    const filters = AdminAppointmentFiltersSchema.safeParse({
+      from: query.data.from,
+      ...(query.data.statuses && {
+        statuses: query.data.statuses.split(',').filter(Boolean),
+      }),
+      to: query.data.to,
+    });
+    if (!filters.success) {
+      return reply.status(400).send({ error: 'validation_error' });
+    }
+    return reply.send(await options.appointments.listAdmin(filters.data));
   });
 
   app.patch('/admin/appointments/:id/status', async (request, reply) => {
