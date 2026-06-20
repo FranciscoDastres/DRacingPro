@@ -155,3 +155,78 @@ export const CreateMotorcycleStatusUpdateSchema = z.object({
 export type CreateMotorcycleStatusUpdateInput = z.infer<
   typeof CreateMotorcycleStatusUpdateSchema
 >;
+
+export const AdminServiceSchema = ServiceSchema.extend({
+  isActive: z.boolean(),
+});
+
+export const CreateServiceSchema = z.object({
+  code: z.string().trim().min(2).max(40),
+  currency: z.string().trim().length(3).default('CLP'),
+  description: z.string().trim().max(2000).optional(),
+  durationMinutes: z.number().int().min(5).max(1440),
+  name: z.string().trim().min(2).max(120),
+  price: z.number().int().nonnegative(),
+});
+
+export const UpdateServiceSchema = CreateServiceSchema.partial()
+  .extend({ isActive: z.boolean().optional() })
+  .refine(
+    (value) => Object.keys(value).length > 0,
+    'At least one field is required',
+  );
+
+export type AdminService = z.infer<typeof AdminServiceSchema>;
+export type CreateServiceInput = z.infer<typeof CreateServiceSchema>;
+export type UpdateServiceInput = z.infer<typeof UpdateServiceSchema>;
+
+const workshopTimeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
+
+export const BusinessHourSchema = z.object({
+  closesAt: workshopTimeSchema,
+  id: z.uuid(),
+  opensAt: workshopTimeSchema,
+  slotMinutes: z.number().int(),
+  validFrom: z.iso.date(),
+  validUntil: z.iso.date().nullable(),
+  weekday: z.number().int().min(0).max(6),
+});
+
+export const SaveBusinessHourSchema = z.object({
+  closesAt: workshopTimeSchema,
+  opensAt: workshopTimeSchema,
+  slotMinutes: z.number().int().min(5).max(240),
+  validFrom: z.iso.date(),
+  validUntil: z.iso.date().optional(),
+  weekday: z.number().int().min(0).max(6),
+});
+
+export type BusinessHour = z.infer<typeof BusinessHourSchema>;
+export type SaveBusinessHourInput = z.infer<typeof SaveBusinessHourSchema>;
+
+export const ScheduleExceptionSchema = z.object({
+  capacityOverride: z.number().int().positive().nullable(),
+  endsAt: z.iso.datetime(),
+  id: z.uuid(),
+  kind: z.enum(['closed', 'availability_override']),
+  reason: z.string().nullable(),
+  startsAt: z.iso.datetime(),
+});
+
+export const CreateScheduleExceptionSchema = z
+  .object({
+    capacityOverride: z.number().int().positive().optional(),
+    endsAt: z.iso.datetime(),
+    kind: z.enum(['closed', 'availability_override']),
+    reason: z.string().trim().max(255).optional(),
+    startsAt: z.iso.datetime(),
+  })
+  .refine((value) => new Date(value.startsAt) < new Date(value.endsAt), {
+    message: 'End must be after start',
+    path: ['endsAt'],
+  });
+
+export type ScheduleException = z.infer<typeof ScheduleExceptionSchema>;
+export type CreateScheduleExceptionInput = z.infer<
+  typeof CreateScheduleExceptionSchema
+>;
