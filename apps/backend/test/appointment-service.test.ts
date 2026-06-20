@@ -81,6 +81,44 @@ describe('AppointmentService.cancel', () => {
   });
 });
 
+describe('AppointmentService.listAdmin', () => {
+  it('queries the requested workshop date range and statuses', async () => {
+    const findMany = vi.fn(async () => [
+      {
+        ...rawAppointment,
+        users: {
+          display_name: 'Cliente NAVI',
+          email: 'cliente@example.com',
+          id: customerUserId,
+        },
+      },
+    ]);
+    const database = {
+      appointments: { findMany },
+    } as unknown as DatabaseClient;
+    const service = new AppointmentService(database);
+
+    const result = await service.listAdmin({
+      from: '2027-01-15',
+      statuses: ['confirmed'],
+      to: '2027-01-16',
+    });
+
+    expect(result).toHaveLength(1);
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          starts_at: {
+            gte: new Date('2027-01-15T03:00:00.000Z'),
+            lt: new Date('2027-01-16T03:00:00.000Z'),
+          },
+          status: { in: ['confirmed'] },
+        },
+      }),
+    );
+  });
+});
+
 function createService(current: typeof rawAppointment | null | CheckedIn) {
   const transaction = {
     appointments: {
