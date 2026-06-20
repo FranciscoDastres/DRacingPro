@@ -1,6 +1,7 @@
 import { TZDate } from '@date-fns/tz';
 import type {
   AdminAppointment,
+  AdminAppointmentFilters,
   Appointment,
   AppointmentTimeline,
   AvailabilitySlot,
@@ -246,13 +247,22 @@ export class AppointmentService {
     return appointments.map(mapAppointment);
   }
 
-  async listAdmin(): Promise<AdminAppointment[]> {
+  async listAdmin(
+    filters?: AdminAppointmentFilters,
+  ): Promise<AdminAppointment[]> {
+    const statusFilter =
+      filters?.statuses ?? (!filters ? [...ACTIVE_STATUSES] : undefined);
     const appointments = await this.database.appointments.findMany({
       include: { ...appointmentInclude, users: true },
       orderBy: { starts_at: 'asc' },
       where: {
-        status: { in: [...ACTIVE_STATUSES] },
-        starts_at: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+        ...(statusFilter && { status: { in: statusFilter } }),
+        starts_at: filters
+          ? {
+              gte: getWorkshopDay(filters.from).dayStart,
+              lt: getWorkshopDay(filters.to).dayStart,
+            }
+          : { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
       },
     });
 
