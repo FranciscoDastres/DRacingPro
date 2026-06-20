@@ -117,7 +117,7 @@ export class AppointmentService {
 
     return this.database.$transaction(
       async (transaction) => {
-        await transaction.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${input.startsAt}))`;
+        await transaction.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${input.startsAt}))`;
         const motorcycle = await transaction.motorcycles.findFirst({
           where: {
             id: input.motorcycleId,
