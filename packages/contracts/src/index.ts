@@ -117,3 +117,41 @@ export const AppointmentSchema = z.object({
 });
 
 export type Appointment = z.infer<typeof AppointmentSchema>;
+
+export const AdminAppointmentSchema = AppointmentSchema.extend({
+  customer: z.object({
+    displayName: z.string(),
+    email: z.email(),
+    id: z.uuid(),
+  }),
+});
+
+export type AdminAppointment = z.infer<typeof AdminAppointmentSchema>;
+
+export const UpdateAppointmentStatusSchema = z.object({
+  reason: z.string().trim().max(500).optional(),
+  status: AppointmentSchema.shape.status,
+});
+
+export type UpdateAppointmentStatusInput = z.infer<
+  typeof UpdateAppointmentStatusSchema
+>;
+
+export const CreateMotorcycleStatusUpdateSchema = z.object({
+  customerVisible: z.boolean().default(true),
+  message: z.string().trim().max(2000).optional(),
+  odometerKm: z.number().int().nonnegative().optional(),
+  progressStatus: z.enum([
+    'received',
+    'diagnosing',
+    'waiting_approval',
+    'repairing',
+    'quality_check',
+    'ready_for_pickup',
+    'delivered',
+  ]),
+});
+
+export type CreateMotorcycleStatusUpdateInput = z.infer<
+  typeof CreateMotorcycleStatusUpdateSchema
+>;
