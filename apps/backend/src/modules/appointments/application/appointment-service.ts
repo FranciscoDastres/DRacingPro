@@ -2,9 +2,11 @@ import { TZDate } from '@date-fns/tz';
 import type {
   AdminAppointment,
   Appointment,
+  AppointmentTimeline,
   AvailabilitySlot,
   CreateMotorcycleStatusUpdateInput,
   CreateAppointmentInput,
+  CustomerMotorcycleUpdate,
   UpdateAppointmentStatusInput,
 } from '@dracing/contracts';
 import type { DatabaseClient } from '@dracing/database';
@@ -288,6 +290,53 @@ export class AppointmentService {
       select: { id: true },
     });
   }
+
+  async getTimeline(
+    customerUserId: string,
+    appointmentId: string,
+  ): Promise<AppointmentTimeline> {
+    const appointment = await this.database.appointments.findFirst({
+      include: {
+        ...appointmentInclude,
+        motorcycle_status_updates: {
+          orderBy: { created_at: 'asc' },
+          where: { customer_visible: true },
+        },
+      },
+      where: { customer_user_id: customerUserId, id: appointmentId },
+    });
+    if (!appointment) throw new AppointmentInputError('appointment_not_found');
+
+    const mappedAppointment = mapAppointment(appointment);
+    return {
+      appointment: mappedAppointment,
+      updates: appointment.motorcycle_status_updates.map((update) =>
+        mapCustomerUpdate(update, mappedAppointment.motorcycle.label),
+      ),
+    };
+  }
+
+  async listCustomerUpdates(
+    customerUserId: string,
+  ): Promise<CustomerMotorcycleUpdate[]> {
+    const updates = await this.database.motorcycle_status_updates.findMany({
+      include: { appointments: { include: { motorcycles: true } } },
+      orderBy: { created_at: 'desc' },
+      take: 20,
+      where: {
+        appointments: { customer_user_id: customerUserId },
+        customer_visible: true,
+      },
+    });
+
+    return updates.map((update) =>
+      mapCustomerUpdate(
+        update,
+        update.appointments.motorcycles.nickname ??
+          `${update.appointments.motorcycles.make} ${update.appointments.motorcycles.model}`,
+      ),
+    );
+  }
 }
 
 export class AppointmentConflictError extends Error {}
@@ -352,6 +401,33 @@ function mapAppointment(appointment: {
     })),
     startsAt: appointment.starts_at.toISOString(),
     status: appointment.status,
+  };
+}
+
+function mapCustomerUpdate(
+  update: {
+    appointment_id: string;
+    created_at: Date;
+    id: string;
+    message: string | null;
+    progress_status:
+      | 'received'
+      | 'diagnosing'
+      | 'waiting_approval'
+      | 'repairing'
+      | 'quality_check'
+      | 'ready_for_pickup'
+      | 'delivered';
+  },
+  motorcycleLabel: string,
+): CustomerMotorcycleUpdate {
+  return {
+    appointmentId: update.appointment_id,
+    createdAt: update.created_at.toISOString(),
+    id: update.id,
+    message: update.message,
+    motorcycleLabel,
+    progressStatus: update.progress_status,
   };
 }
 
