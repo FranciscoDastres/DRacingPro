@@ -230,3 +230,30 @@ export type ScheduleException = z.infer<typeof ScheduleExceptionSchema>;
 export type CreateScheduleExceptionInput = z.infer<
   typeof CreateScheduleExceptionSchema
 >;
+
+export const CustomerMotorcycleUpdateSchema = z.object({
+  appointmentId: z.uuid(),
+  createdAt: z.iso.datetime(),
+  id: z.uuid(),
+  message: z.string().nullable(),
+  motorcycleLabel: z.string(),
+  progressStatus: z.enum([
+    'received',
+    'diagnosing',
+    'waiting_approval',
+    'repairing',
+    'quality_check',
+    'ready_for_pickup',
+    'delivered',
+  ]),
+});
+
+export const AppointmentTimelineSchema = z.object({
+  appointment: AppointmentSchema,
+  updates: z.array(CustomerMotorcycleUpdateSchema),
+});
+
+export type CustomerMotorcycleUpdate = z.infer<
+  typeof CustomerMotorcycleUpdateSchema
+>;
+export type AppointmentTimeline = z.infer<typeof AppointmentTimelineSchema>;
