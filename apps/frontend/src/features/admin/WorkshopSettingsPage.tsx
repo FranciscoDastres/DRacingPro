@@ -137,18 +137,21 @@ export function WorkshopSettingsPage() {
         <h2 className="text-xl font-bold">Servicios</h2>
         <div className="mt-5 grid gap-3 md:grid-cols-[1fr_140px_120px_140px_auto]">
           <input
+            aria-label="Nombre del servicio"
             className={fieldClass}
             onChange={(event) => setServiceName(event.target.value)}
             placeholder="Nombre del servicio"
             value={serviceName}
           />
           <input
+            aria-label="Código del servicio"
             className={fieldClass}
             onChange={(event) => setServiceCode(event.target.value)}
             placeholder="Código"
             value={serviceCode}
           />
           <input
+            aria-label="Duración del servicio en minutos"
             className={fieldClass}
             min="5"
             onChange={(event) => setDuration(Number(event.target.value))}
@@ -157,6 +160,7 @@ export function WorkshopSettingsPage() {
             value={duration}
           />
           <input
+            aria-label="Precio del servicio en pesos chilenos"
             className={fieldClass}
             min="0"
             onChange={(event) => setPrice(Number(event.target.value))}
@@ -187,6 +191,7 @@ export function WorkshopSettingsPage() {
                 </p>
               </div>
               <button
+                aria-label={`${service.isActive ? 'Desactivar' : 'Activar'} ${service.name}`}
                 className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
                   service.isActive
                     ? 'bg-success/10 text-success'
@@ -206,6 +211,7 @@ export function WorkshopSettingsPage() {
         <h2 className="text-xl font-bold">Horario semanal</h2>
         <div className="mt-5 flex flex-wrap gap-3">
           <select
+            aria-label="Día de la semana"
             className={fieldClass}
             onChange={(event) => setWeekday(Number(event.target.value))}
             value={weekday}
@@ -217,12 +223,14 @@ export function WorkshopSettingsPage() {
             ))}
           </select>
           <input
+            aria-label="Hora de apertura"
             className={fieldClass}
             onChange={(event) => setOpensAt(event.target.value)}
             type="time"
             value={opensAt}
           />
           <input
+            aria-label="Hora de cierre"
             className={fieldClass}
             onChange={(event) => setClosesAt(event.target.value)}
             type="time"
@@ -247,6 +255,7 @@ export function WorkshopSettingsPage() {
                 {hour.opensAt}–{hour.closesAt} · cada {hour.slotMinutes} min
               </p>
               <button
+                aria-label={`Eliminar horario de ${weekdays[hour.weekday]}`}
                 className="text-primary mt-3 text-xs font-semibold"
                 onClick={() => deleteHour.mutate(hour.id)}
                 type="button"
@@ -262,18 +271,21 @@ export function WorkshopSettingsPage() {
         <h2 className="text-xl font-bold">Cierres y excepciones</h2>
         <div className="mt-5 grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto]">
           <input
+            aria-label="Inicio del cierre"
             className={fieldClass}
             onChange={(event) => setExceptionStart(event.target.value)}
             type="datetime-local"
             value={exceptionStart}
           />
           <input
+            aria-label="Fin del cierre"
             className={fieldClass}
             onChange={(event) => setExceptionEnd(event.target.value)}
             type="datetime-local"
             value={exceptionEnd}
           />
           <input
+            aria-label="Motivo del cierre"
             className={fieldClass}
             onChange={(event) => setExceptionReason(event.target.value)}
             placeholder="Motivo"
@@ -306,6 +318,7 @@ export function WorkshopSettingsPage() {
                 </p>
               </div>
               <button
+                aria-label={`Eliminar cierre ${exception.reason ?? 'del taller'}`}
                 className="text-primary text-xs font-semibold"
                 onClick={() => deleteException.mutate(exception.id)}
                 type="button"
