@@ -4,6 +4,7 @@ import type {
   Appointment,
   AppointmentTimeline,
   AvailabilitySlot,
+  CancelAppointmentInput,
   CreateMotorcycleStatusUpdateInput,
   CreateAppointmentInput,
   CustomerMotorcycleUpdate,
@@ -195,6 +196,47 @@ export class AppointmentService {
     );
   }
 
+  async cancel(
+    customerUserId: string,
+    appointmentId: string,
+    input: CancelAppointmentInput,
+  ): Promise<Appointment> {
+    return this.database.$transaction(async (transaction) => {
+      const current = await transaction.appointments.findFirst({
+        where: { customer_user_id: customerUserId, id: appointmentId },
+      });
+      if (!current) throw new AppointmentInputError('appointment_not_found');
+      if (
+        current.starts_at <= new Date() ||
+        !CUSTOMER_CANCELLABLE_STATUSES.includes(current.status)
+      ) {
+        throw new AppointmentTransitionError();
+      }
+
+      const reason = input.reason ?? 'Cancelada por cliente';
+      const updated = await transaction.appointments.update({
+        data: {
+          cancellation_reason: reason,
+          cancelled_at: new Date(),
+          status: 'cancelled',
+          version: { increment: 1 },
+        },
+        include: appointmentInclude,
+        where: { id: appointmentId, version: current.version },
+      });
+      await transaction.appointment_status_history.create({
+        data: {
+          appointment_id: appointmentId,
+          changed_by_user_id: customerUserId,
+          from_status: current.status,
+          reason,
+          to_status: 'cancelled',
+        },
+      });
+      return mapAppointment(updated);
+    });
+  }
+
   async list(customerUserId: string): Promise<Appointment[]> {
     const appointments = await this.database.appointments.findMany({
       include: appointmentInclude,
@@ -342,6 +384,11 @@ export class AppointmentService {
 export class AppointmentConflictError extends Error {}
 export class AppointmentInputError extends Error {}
 export class AppointmentTransitionError extends Error {}
+
+const CUSTOMER_CANCELLABLE_STATUSES: Appointment['status'][] = [
+  'requested',
+  'confirmed',
+];
 
 const ALLOWED_STATUS_TRANSITIONS = {
   cancelled: [],
