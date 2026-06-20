@@ -8,6 +8,7 @@ import { GoogleOidcClient } from './modules/auth/infrastructure/google-oidc.js';
 import { PrismaAuthRepository } from './modules/auth/infrastructure/prisma-auth-repository.js';
 import { PrismaMotorcycleRepository } from './modules/motorcycles/infrastructure/prisma-motorcycle-repository.js';
 import { PrismaServiceRepository } from './modules/services/infrastructure/prisma-service-repository.js';
+import { WorkshopAdminService } from './modules/workshop/application/workshop-admin-service.js';
 
 const environment = parseEnvironment();
 const database = createDatabaseClient(environment.DATABASE_URL);
@@ -38,6 +39,11 @@ const app = await buildApp({
   },
   services: {
     repository: new PrismaServiceRepository(database),
+  },
+  workshopAdmin: {
+    appOrigin: environment.APP_ORIGIN,
+    sessions,
+    workshop: new WorkshopAdminService(database),
   },
 });
 
