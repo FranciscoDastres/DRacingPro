@@ -29,7 +29,8 @@ puede producir reservas incompatibles.
 **Estado: en progreso desde el 20 de junio de 2026. Panel cliente, navegación,
 motos, catálogo, agendamiento y operación base del panel administrador
 implementados. La edición de catálogo, horarios y excepciones también está
-operativa; quedan pendientes timeline cliente, notificaciones y pulido E2E.**
+operativa. Timeline cliente y novedades dentro de la aplicación también están
+implementados; queda pendiente el pulido y cobertura E2E.**
 
 - Cliente: onboarding, motos, disponibilidad, reserva, cancelación e historial.
 - Cliente: timeline del estado de la moto y notificaciones.
