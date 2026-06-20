@@ -1,6 +1,7 @@
 import { createBrowserRouter } from 'react-router-dom';
 
 import { AdminAppointmentsPage } from '../features/admin/AdminAppointmentsPage';
+import { WorkshopSettingsPage } from '../features/admin/WorkshopSettingsPage';
 import { AppointmentsPage } from '../features/appointments/AppointmentsPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { MotorcyclesPage } from '../features/motorcycles/MotorcyclesPage';
@@ -25,7 +26,10 @@ export const router = createBrowserRouter([
           { element: <ServicesPage />, path: 'services' },
           {
             element: <AdminRoute />,
-            children: [{ element: <AdminAppointmentsPage />, path: 'admin' }],
+            children: [
+              { element: <AdminAppointmentsPage />, path: 'admin' },
+              { element: <WorkshopSettingsPage />, path: 'admin/settings' },
+            ],
           },
         ],
       },
