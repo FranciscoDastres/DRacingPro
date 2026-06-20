@@ -32,8 +32,10 @@ export interface AppointmentRoutesOptions {
     | 'addMotorcycleUpdate'
     | 'create'
     | 'getAvailability'
+    | 'getTimeline'
     | 'list'
     | 'listAdmin'
+    | 'listCustomerUpdates'
     | 'updateStatus'
   >;
   sessions: SessionService;
@@ -66,6 +68,30 @@ export const appointmentRoutes: FastifyPluginAsync<
     const user = await requireUser(request, reply, options.sessions);
     if (!user) return;
     return reply.send(await options.appointments.list(user.id));
+  });
+
+  app.get('/appointments/:id/timeline', async (request, reply) => {
+    const user = await requireUser(request, reply, options.sessions);
+    if (!user) return;
+    const params = appointmentParamsSchema.safeParse(request.params);
+    if (!params.success)
+      return reply.status(400).send({ error: 'validation_error' });
+    try {
+      return reply.send(
+        await options.appointments.getTimeline(user.id, params.data.id),
+      );
+    } catch (error) {
+      if (error instanceof AppointmentInputError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      throw error;
+    }
+  });
+
+  app.get('/notifications', async (request, reply) => {
+    const user = await requireUser(request, reply, options.sessions);
+    if (!user) return;
+    return reply.send(await options.appointments.listCustomerUpdates(user.id));
   });
 
   app.post('/appointments', async (request, reply) => {
