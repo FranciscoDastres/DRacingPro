@@ -134,6 +134,31 @@ export const AdminAppointmentSchema = AppointmentSchema.extend({
 
 export type AdminAppointment = z.infer<typeof AdminAppointmentSchema>;
 
+export const AdminAppointmentFiltersSchema = z
+  .object({
+    from: z.iso.date(),
+    statuses: z.array(AppointmentSchema.shape.status).min(1).max(8).optional(),
+    to: z.iso.date(),
+  })
+  .refine((value) => value.from < value.to, {
+    message: 'End date must be after start date',
+    path: ['to'],
+  })
+  .refine(
+    (value) =>
+      Date.parse(`${value.to}T00:00:00.000Z`) -
+        Date.parse(`${value.from}T00:00:00.000Z`) <=
+      31 * 24 * 60 * 60 * 1000,
+    {
+      message: 'Date range cannot exceed 31 days',
+      path: ['to'],
+    },
+  );
+
+export type AdminAppointmentFilters = z.infer<
+  typeof AdminAppointmentFiltersSchema
+>;
+
 export const UpdateAppointmentStatusSchema = z.object({
   reason: z.string().trim().max(500).optional(),
   status: AppointmentSchema.shape.status,
