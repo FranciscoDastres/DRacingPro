@@ -18,7 +18,7 @@ tokens de Google ni JWT en `localStorage`.
    no por correo como identidad primaria.
 7. La API crea o rota una sesión aleatoria, persiste solo su SHA-256 y envía una
    cookie `HttpOnly; Secure; SameSite=Lax; Path=/`.
-8. El frontend consulta `GET /v1/me`. El rol se toma de PostgreSQL; Google jamás
+8. El frontend consulta `GET /v1/auth/me`. El rol se toma de PostgreSQL; Google jamás
    concede rol administrador.
 9. Logout revoca la sesión en la base y elimina la cookie.
 

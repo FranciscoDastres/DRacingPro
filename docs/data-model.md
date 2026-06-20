@@ -11,7 +11,8 @@
 - El estado administrativo de la cita y el progreso de la moto se registran por
   separado y con historial.
 - Los identificadores son UUID y todas las fechas operativas se guardan como
-  `timestamptz`. La presentación usa `America/Santiago`.
+  `timestamptz`. PostgreSQL y las conexiones operan en UTC; la presentación y
+  el cálculo de agenda usan `America/Santiago`.
 
 ## ERD
 

@@ -5,6 +5,7 @@
 coverage/
 dist/
 node_modules/
+packages/database/src/generated/
 *.log
 *.tsbuildinfo
 .vite/

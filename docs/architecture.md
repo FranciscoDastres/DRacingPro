@@ -93,7 +93,7 @@ domain`. Prisma, Fastify y Google no entran al dominio.
 GET    /v1/auth/google
 GET    /v1/auth/google/callback
 POST   /v1/auth/logout
-GET    /v1/me
+GET    /v1/auth/me
 GET    /v1/services
 GET    /v1/availability?serviceIds=&from=&to=
 GET    /v1/motorcycles

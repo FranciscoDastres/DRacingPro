@@ -86,6 +86,15 @@ export function App() {
             Agenda mantenciones, sigue el avance del trabajo y conserva todo el
             historial de tu moto en un solo lugar.
           </p>
+          <div className="mt-10 flex flex-wrap items-center gap-4">
+            <a
+              className="bg-primary focus-visible:outline-accent rounded-xl px-6 py-3.5 text-sm font-bold text-white shadow-[0_12px_30px_rgba(240,68,56,0.22)] transition hover:-translate-y-0.5 hover:bg-[#ff554a] focus-visible:outline-2 focus-visible:outline-offset-4"
+              href={`${API_URL}/v1/auth/google?returnTo=/`}
+            >
+              Ingresar con Google
+            </a>
+            <span className="text-muted text-sm">Agenda disponible 24/7</span>
+          </div>
         </div>
 
         <section

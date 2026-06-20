@@ -42,6 +42,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f database/migrations/001_initial_schema.sql
+      - run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f database/migrations/002_seed_reference_data.sql
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test

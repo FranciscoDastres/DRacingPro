@@ -1,0 +1,269 @@
+generator client {
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model appointment_services {
+  appointment_id        String       @db.Uuid
+  service_id            String       @db.Uuid
+  service_name_snapshot String       @db.VarChar(120)
+  unit_price_cents      Int
+  currency              String       @db.Char(3)
+  duration_minutes      Int
+  quantity              Int          @default(1) @db.SmallInt
+  created_at            DateTime     @default(now()) @db.Timestamptz(6)
+  appointments          appointments @relation(fields: [appointment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  services              services     @relation(fields: [service_id], references: [id], onUpdate: NoAction)
+
+  @@id([appointment_id, service_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model appointment_status_history {
+  id                 String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  appointment_id     String              @db.Uuid
+  from_status        appointment_status?
+  to_status          appointment_status
+  changed_by_user_id String?             @db.Uuid
+  reason             String?             @db.VarChar(500)
+  created_at         DateTime            @default(now()) @db.Timestamptz(6)
+  appointments       appointments        @relation(fields: [appointment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users              users?              @relation(fields: [changed_by_user_id], references: [id], onUpdate: NoAction)
+
+  @@index([appointment_id, created_at], map: "appointment_status_history_timeline_idx")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This table contains exclusion constraints and requires additional setup for migrations. Visit https://pris.ly/d/exclusion-constraints for more info.
+model appointments {
+  id                         String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  customer_user_id           String                       @db.Uuid
+  motorcycle_id              String                       @db.Uuid
+  service_bay_id             String                       @db.Uuid
+  starts_at                  DateTime                     @db.Timestamptz(6)
+  ends_at                    DateTime                     @db.Timestamptz(6)
+  status                     appointment_status           @default(requested)
+  customer_notes             String?
+  internal_notes             String?
+  cancellation_reason        String?                      @db.VarChar(500)
+  cancelled_at               DateTime?                    @db.Timestamptz(6)
+  version                    Int                          @default(1)
+  created_at                 DateTime                     @default(now()) @db.Timestamptz(6)
+  updated_at                 DateTime                     @default(now()) @db.Timestamptz(6)
+  appointment_services       appointment_services[]
+  appointment_status_history appointment_status_history[]
+  users                      users                        @relation(fields: [customer_user_id], references: [id], onUpdate: NoAction)
+  motorcycles                motorcycles                  @relation(fields: [motorcycle_id, customer_user_id], references: [id, owner_user_id], onUpdate: NoAction, map: "appointments_motorcycle_owner_fk")
+  service_bays               service_bays                 @relation(fields: [service_bay_id], references: [id], onUpdate: NoAction)
+  motorcycle_status_updates  motorcycle_status_updates[]
+
+  @@index([customer_user_id, starts_at(sort: Desc)], map: "appointments_customer_starts_idx")
+  @@index([motorcycle_id, starts_at(sort: Desc)], map: "appointments_motorcycle_idx")
+  @@index([status, starts_at], map: "appointments_status_starts_idx")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model audit_logs {
+  id            BigInt   @id @default(autoincrement())
+  actor_user_id String?  @db.Uuid
+  action        String   @db.VarChar(120)
+  entity_type   String   @db.VarChar(80)
+  entity_id     String?
+  metadata      Json     @default("{}")
+  request_id    String?  @db.Uuid
+  ip_address    String?  @db.Inet
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  users         users?   @relation(fields: [actor_user_id], references: [id], onUpdate: NoAction)
+
+  @@index([actor_user_id, created_at(sort: Desc)], map: "audit_logs_actor_created_idx")
+  @@index([entity_type, entity_id, created_at(sort: Desc)], map: "audit_logs_entity_idx")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model auth_sessions {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id      String    @db.Uuid
+  token_hash   Bytes     @unique
+  expires_at   DateTime  @db.Timestamptz(6)
+  last_seen_at DateTime  @default(now()) @db.Timestamptz(6)
+  revoked_at   DateTime? @db.Timestamptz(6)
+  user_agent   String?   @db.VarChar(512)
+  ip_address   String?   @db.Inet
+  created_at   DateTime  @default(now()) @db.Timestamptz(6)
+  users        users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id, expires_at], map: "auth_sessions_active_user_idx", where: raw("(revoked_at IS NULL)"))
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model business_hours {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  weekday      Int       @db.SmallInt
+  opens_at     DateTime  @db.Time(6)
+  closes_at    DateTime  @db.Time(6)
+  slot_minutes Int       @default(30) @db.SmallInt
+  valid_from   DateTime  @default(dbgenerated("CURRENT_DATE")) @db.Date
+  valid_until  DateTime? @db.Date
+  created_at   DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@unique([weekday, opens_at, valid_from])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model motorcycle_status_updates {
+  id                 String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  appointment_id     String                     @db.Uuid
+  progress_status    motorcycle_progress_status
+  message            String?
+  customer_visible   Boolean                    @default(true)
+  odometer_km        Int?
+  created_by_user_id String?                    @db.Uuid
+  created_at         DateTime                   @default(now()) @db.Timestamptz(6)
+  appointments       appointments               @relation(fields: [appointment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users              users?                     @relation(fields: [created_by_user_id], references: [id], onUpdate: NoAction)
+
+  @@index([appointment_id, created_at], map: "motorcycle_status_updates_timeline_idx")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model motorcycles {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  owner_user_id String         @db.Uuid
+  nickname      String?        @db.VarChar(80)
+  make          String         @default("Honda") @db.VarChar(40)
+  model         String         @default("NAVI") @db.VarChar(80)
+  model_year    Int?           @db.SmallInt
+  color         String?        @db.VarChar(60)
+  license_plate String?        @unique(map: "motorcycles_license_plate_unique_idx", where: raw("(license_plate IS NOT NULL)")) @db.Citext
+  vin           String?        @unique(map: "motorcycles_vin_unique_idx", where: raw("(vin IS NOT NULL)")) @db.Citext
+  odometer_km   Int?
+  notes         String?
+  is_active     Boolean        @default(true)
+  created_at    DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime       @default(now()) @db.Timestamptz(6)
+  appointments  appointments[]
+  users         users          @relation(fields: [owner_user_id], references: [id], onUpdate: NoAction)
+
+  @@unique([id, owner_user_id])
+  @@index([owner_user_id, is_active], map: "motorcycles_owner_idx")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model oauth_accounts {
+  provider         String   @db.VarChar(32)
+  provider_subject String   @db.VarChar(255)
+  user_id          String   @db.Uuid
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  last_login_at    DateTime @default(now()) @db.Timestamptz(6)
+  users            users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([provider, provider_subject])
+  @@unique([user_id, provider])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model schedule_exceptions {
+  id                 String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  starts_at          DateTime                @db.Timestamptz(6)
+  ends_at            DateTime                @db.Timestamptz(6)
+  kind               schedule_exception_kind
+  capacity_override  Int?                    @db.SmallInt
+  reason             String?                 @db.VarChar(255)
+  created_by_user_id String?                 @db.Uuid
+  created_at         DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime                @default(now()) @db.Timestamptz(6)
+  users              users?                  @relation(fields: [created_by_user_id], references: [id], onUpdate: NoAction)
+}
+
+model schema_migrations {
+  filename   String   @id
+  applied_at DateTime @default(now()) @db.Timestamptz(6)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model service_bays {
+  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String         @unique @db.VarChar(80)
+  description  String?
+  is_active    Boolean        @default(true)
+  created_at   DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime       @default(now()) @db.Timestamptz(6)
+  appointments appointments[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model services {
+  id                   String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code                 String                 @unique @db.Citext
+  name                 String                 @db.VarChar(120)
+  description          String?
+  duration_minutes     Int
+  price_cents          Int
+  currency             String                 @default("CLP") @db.Char(3)
+  is_active            Boolean                @default(true)
+  created_at           DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime               @default(now()) @db.Timestamptz(6)
+  appointment_services appointment_services[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model users {
+  id                         String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                      String                       @unique @db.Citext
+  display_name               String                       @db.VarChar(120)
+  avatar_url                 String?
+  phone                      String?                      @db.VarChar(32)
+  role                       user_role                    @default(customer)
+  is_active                  Boolean                      @default(true)
+  created_at                 DateTime                     @default(now()) @db.Timestamptz(6)
+  updated_at                 DateTime                     @default(now()) @db.Timestamptz(6)
+  appointment_status_history appointment_status_history[]
+  appointments               appointments[]
+  audit_logs                 audit_logs[]
+  auth_sessions              auth_sessions[]
+  motorcycle_status_updates  motorcycle_status_updates[]
+  motorcycles                motorcycles[]
+  oauth_accounts             oauth_accounts[]
+  schedule_exceptions        schedule_exceptions[]
+}
+
+enum appointment_status {
+  requested
+  confirmed
+  checked_in
+  in_service
+  ready
+  completed
+  cancelled
+  no_show
+}
+
+enum motorcycle_progress_status {
+  received
+  diagnosing
+  waiting_approval
+  repairing
+  quality_check
+  ready_for_pickup
+  delivered
+}
+
+enum schedule_exception_kind {
+  closed
+  availability_override
+}
+
+enum user_role {
+  customer
+  admin
+}

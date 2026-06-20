@@ -1,5 +1,5 @@
 {
-  "name": "@dracing/contracts",
+  "name": "@dracing/database",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -10,14 +10,20 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "prisma generate && tsc -p tsconfig.json",
+    "generate": "prisma generate",
+    "introspect": "prisma db pull",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "zod": "^4.3.6"
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "^7.8.0"
   },
   "devDependencies": {
+    "@types/node": "^26.0.0",
+    "dotenv": "^17.4.2",
+    "prisma": "^7.8.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.9"
   }

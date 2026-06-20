@@ -59,3 +59,40 @@ pnpm typecheck
 pnpm test
 pnpm build
 ```
+
+## Configurar Google OAuth
+
+Crear un cliente OAuth 2.0 de tipo **Web application** en Google Cloud y registrar
+esta URI de redirección para el entorno local:
+
+```text
+http://localhost:3000/v1/auth/google/callback
+```
+
+Después configurar en `.env`:
+
+```text
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+GOOGLE_REDIRECT_URI=http://localhost:3000/v1/auth/google/callback
+SESSION_SECRET=<valor-aleatorio-de-al-menos-32-caracteres>
+COOKIE_SECURE=false
+```
+
+En producción, las URLs deben ser HTTPS y `COOKIE_SECURE=true`. Si se cambian
+`API_PORT` o `APP_PORT`, también se deben actualizar las URLs registradas en
+Google y las variables `API_ORIGIN`, `APP_ORIGIN` y `GOOGLE_REDIRECT_URI`.
+
+Endpoints disponibles en Fase 2:
+
+```text
+GET    /v1/auth/google
+GET    /v1/auth/google/callback
+GET    /v1/auth/me
+POST   /v1/auth/logout
+GET    /v1/services
+GET    /v1/motorcycles
+POST   /v1/motorcycles
+PATCH  /v1/motorcycles/:id
+DELETE /v1/motorcycles/:id
+```

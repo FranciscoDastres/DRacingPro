@@ -8,16 +8,19 @@
     "node": ">=20.19.0"
   },
   "scripts": {
-    "dev": "pnpm --filter @dracing/contracts build && pnpm --parallel --filter @dracing/frontend --filter @dracing/backend dev",
+    "dev": "pnpm build:packages && pnpm --parallel --filter @dracing/frontend --filter @dracing/backend dev",
+    "build:packages": "pnpm --filter @dracing/contracts build && pnpm --filter @dracing/database build",
     "build": "pnpm -r --if-present build",
     "lint": "eslint . --max-warnings=0",
-    "typecheck": "pnpm -r --if-present typecheck",
-    "test": "pnpm -r --if-present test",
+    "typecheck": "pnpm build:packages && pnpm -r --if-present typecheck",
+    "test": "pnpm build:packages && pnpm -r --if-present test",
     "test:coverage": "pnpm -r --if-present test:coverage",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",
+    "db:generate": "pnpm --filter @dracing/database generate",
+    "db:introspect": "pnpm --filter @dracing/database introspect",
     "db:migrate": "docker compose run --rm migrate",
     "dev:up": "docker compose up --build",
     "dev:status": "docker compose ps"
