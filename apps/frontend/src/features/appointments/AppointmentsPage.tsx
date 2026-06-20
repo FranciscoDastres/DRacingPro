@@ -97,6 +97,7 @@ export function AppointmentsPage() {
           <section className="bg-surface rounded-2xl border border-white/10 p-6">
             <h2 className="font-bold">1. Elige tu moto</h2>
             <select
+              aria-label="Selecciona tu Honda NAVI"
               className="bg-background focus:border-accent mt-4 w-full rounded-lg border border-white/10 px-3 py-3 text-sm outline-none"
               onChange={(event) => setMotorcycleId(event.target.value)}
               value={motorcycleId}
@@ -145,6 +146,7 @@ export function AppointmentsPage() {
           <section className="bg-surface rounded-2xl border border-white/10 p-6">
             <h2 className="font-bold">3. Fecha y horario</h2>
             <input
+              aria-label="Fecha de la cita"
               className="bg-background focus:border-accent mt-4 rounded-lg border border-white/10 px-3 py-3 text-sm outline-none"
               min={new Date().toISOString().slice(0, 10)}
               onChange={(event) => {
@@ -204,7 +206,7 @@ export function AppointmentsPage() {
             </div>
           </dl>
           {createAppointment.isError && (
-            <p className="text-primary mt-4 text-sm">
+            <p className="text-primary mt-4 text-sm" role="alert">
               El horario dejó de estar disponible. Selecciona otro.
             </p>
           )}
