@@ -30,7 +30,9 @@ puede producir reservas incompatibles.
 motos, catálogo, agendamiento y operación base del panel administrador
 implementados. La edición de catálogo, horarios y excepciones también está
 operativa. Timeline cliente y novedades dentro de la aplicación también están
-implementados; queda pendiente el pulido y cobertura E2E.**
+implementados. La cancelación de citas por el cliente ya aplica propiedad,
+transiciones, auditoría y validación E2E en móvil. Quedan pendientes la vista
+diaria/semanal del administrador, reasignación y automatización E2E durable.**
 
 - Cliente: onboarding, motos, disponibilidad, reserva, cancelación e historial.
 - Cliente: timeline del estado de la moto y notificaciones.
