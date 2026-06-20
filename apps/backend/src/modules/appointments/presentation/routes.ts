@@ -1,6 +1,8 @@
 import {
   AvailabilityRequestSchema,
+  CreateMotorcycleStatusUpdateSchema,
   CreateAppointmentSchema,
+  UpdateAppointmentStatusSchema,
 } from '@dracing/contracts';
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
@@ -14,16 +16,26 @@ import {
   AppointmentConflictError,
   AppointmentInputError,
   type AppointmentService,
+  AppointmentTransitionError,
 } from '../application/appointment-service.js';
 
 const availabilityQuerySchema = z.object({
   date: z.string(),
   serviceIds: z.string(),
 });
+const appointmentParamsSchema = z.object({ id: z.uuid() });
 
 export interface AppointmentRoutesOptions {
   appOrigin: string;
-  appointments: Pick<AppointmentService, 'create' | 'getAvailability' | 'list'>;
+  appointments: Pick<
+    AppointmentService,
+    | 'addMotorcycleUpdate'
+    | 'create'
+    | 'getAvailability'
+    | 'list'
+    | 'listAdmin'
+    | 'updateStatus'
+  >;
   sessions: SessionService;
 }
 
@@ -83,4 +95,79 @@ export const appointmentRoutes: FastifyPluginAsync<
       throw error;
     }
   });
+
+  app.get('/admin/appointments', async (request, reply) => {
+    const user = await requireUser(request, reply, options.sessions);
+    if (!user) return;
+    if (user.role !== 'admin')
+      return reply.status(403).send({ error: 'forbidden' });
+    return reply.send(await options.appointments.listAdmin());
+  });
+
+  app.patch('/admin/appointments/:id/status', async (request, reply) => {
+    if (!hasTrustedOrigin(request, options.appOrigin)) {
+      return reply.status(403).send({ error: 'invalid_origin' });
+    }
+    const user = await requireUser(request, reply, options.sessions);
+    if (!user) return;
+    if (user.role !== 'admin')
+      return reply.status(403).send({ error: 'forbidden' });
+
+    const params = appointmentParamsSchema.safeParse(request.params);
+    const input = UpdateAppointmentStatusSchema.safeParse(request.body);
+    if (!params.success || !input.success) {
+      return reply.status(400).send({ error: 'validation_error' });
+    }
+
+    try {
+      return reply.send(
+        await options.appointments.updateStatus(
+          user.id,
+          params.data.id,
+          input.data,
+        ),
+      );
+    } catch (error) {
+      if (error instanceof AppointmentTransitionError) {
+        return reply.status(409).send({ error: 'invalid_status_transition' });
+      }
+      if (error instanceof AppointmentInputError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      throw error;
+    }
+  });
+
+  app.post(
+    '/admin/appointments/:id/motorcycle-updates',
+    async (request, reply) => {
+      if (!hasTrustedOrigin(request, options.appOrigin)) {
+        return reply.status(403).send({ error: 'invalid_origin' });
+      }
+      const user = await requireUser(request, reply, options.sessions);
+      if (!user) return;
+      if (user.role !== 'admin')
+        return reply.status(403).send({ error: 'forbidden' });
+
+      const params = appointmentParamsSchema.safeParse(request.params);
+      const input = CreateMotorcycleStatusUpdateSchema.safeParse(request.body);
+      if (!params.success || !input.success) {
+        return reply.status(400).send({ error: 'validation_error' });
+      }
+
+      try {
+        const update = await options.appointments.addMotorcycleUpdate(
+          user.id,
+          params.data.id,
+          input.data,
+        );
+        return reply.status(201).send(update);
+      } catch (error) {
+        if (error instanceof AppointmentInputError) {
+          return reply.status(404).send({ error: error.message });
+        }
+        throw error;
+      }
+    },
+  );
 };
