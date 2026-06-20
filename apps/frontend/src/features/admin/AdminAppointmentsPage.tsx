@@ -144,6 +144,7 @@ export function AdminAppointmentsPage() {
             <div className="mt-6 flex flex-wrap gap-2 border-t border-white/10 pt-5">
               {nextStatuses[appointment.status].map((status) => (
                 <button
+                  aria-label={`${statusLabels[status]} para ${appointment.motorcycle.label}`}
                   className={`rounded-lg px-4 py-2 text-xs font-bold transition disabled:opacity-50 ${
                     status === 'cancelled' || status === 'no_show'
                       ? 'border-primary/30 text-primary hover:bg-primary/10 border'
@@ -160,6 +161,7 @@ export function AdminAppointmentsPage() {
                 </button>
               ))}
               <button
+                aria-label={`Editar avance de ${appointment.motorcycle.label}`}
                 className="text-muted hover:text-foreground rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold"
                 onClick={() =>
                   setUpdatingAppointmentId((current) =>
@@ -175,6 +177,7 @@ export function AdminAppointmentsPage() {
             {updatingAppointmentId === appointment.id && (
               <div className="bg-background mt-5 grid gap-3 rounded-xl p-4 sm:grid-cols-[200px_1fr_auto]">
                 <select
+                  aria-label={`Estado del avance de ${appointment.motorcycle.label}`}
                   className="bg-surface rounded-lg border border-white/10 px-3 py-2 text-sm"
                   onChange={(event) =>
                     setProgressStatus(
@@ -193,12 +196,14 @@ export function AdminAppointmentsPage() {
                   <option value="delivered">Entregada</option>
                 </select>
                 <input
+                  aria-label={`Mensaje para el cliente sobre ${appointment.motorcycle.label}`}
                   className="bg-surface focus:border-accent rounded-lg border border-white/10 px-3 py-2 text-sm outline-none"
                   onChange={(event) => setMessage(event.target.value)}
                   placeholder="Mensaje visible para el cliente"
                   value={message}
                 />
                 <button
+                  aria-label={`Publicar avance de ${appointment.motorcycle.label}`}
                   className="bg-primary rounded-lg px-4 py-2 text-xs font-bold text-white disabled:opacity-50"
                   disabled={progressMutation.isPending}
                   onClick={() => progressMutation.mutate(appointment.id)}
