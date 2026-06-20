@@ -1,5 +1,6 @@
 import type {
   AdminAppointment,
+  AdminAppointmentFilters,
   Appointment,
   AvailabilitySlot,
   CancelAppointmentInput,
@@ -131,6 +132,24 @@ describe('appointment routes', () => {
     await adminApp.close();
   });
 
+  it('passes validated date and status filters to the admin agenda', async () => {
+    const listAdmin = vi.fn(async () => [adminAppointment]);
+    const app = await createApp(true, undefined, listAdmin);
+    const response = await app.inject({
+      headers: { cookie: 'drp_session=test-session' },
+      method: 'GET',
+      url: '/v1/admin/appointments?from=2027-01-12&to=2027-01-19&statuses=requested,confirmed',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(listAdmin).toHaveBeenCalledWith({
+      from: '2027-01-12',
+      statuses: ['requested', 'confirmed'],
+      to: '2027-01-19',
+    });
+    await app.close();
+  });
+
   it('returns customer-visible motorcycle updates', async () => {
     const app = await createApp();
     const response = await app.inject({
@@ -151,6 +170,9 @@ async function createApp(
     appointmentId: string,
     input: CancelAppointmentInput,
   ) => Promise<Appointment> = async () => cancelledAppointment,
+  listAdmin: (
+    filters?: AdminAppointmentFilters,
+  ) => Promise<AdminAppointment[]> = async () => [adminAppointment],
 ) {
   const authRepository = new MemoryAuthRepository();
   if (admin) authRepository.user = { ...testUser, role: 'admin' };
@@ -169,7 +191,7 @@ async function createApp(
           updates: [motorcycleUpdate],
         }),
         list: async () => [],
-        listAdmin: async () => [adminAppointment],
+        listAdmin,
         listCustomerUpdates: async () => [motorcycleUpdate],
         updateStatus: async () => appointment,
       },
