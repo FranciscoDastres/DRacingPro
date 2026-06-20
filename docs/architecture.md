@@ -101,7 +101,7 @@ POST   /v1/motorcycles
 GET    /v1/appointments
 POST   /v1/appointments
 PATCH  /v1/appointments/:id/cancel
-GET    /v1/admin/appointments
+GET    /v1/admin/appointments?from=&to=&statuses=
 PATCH  /v1/admin/appointments/:id/status
 POST   /v1/admin/appointments/:id/motorcycle-updates
 ```
