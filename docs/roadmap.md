@@ -13,6 +13,9 @@
 
 ## Fase 2 — Auth y base de datos
 
+**Estado: completada técnicamente el 20 de junio de 2026. La prueba contra Google
+requiere credenciales OAuth del propietario del proyecto.**
+
 - Implementar migraciones, seed idempotente de servicios/bahías/horarios.
 - Repositorios, transacciones y pruebas de invariantes de agenda.
 - OAuth Google + PKCE, sesiones, logout, CSRF y guards de rol/propiedad.

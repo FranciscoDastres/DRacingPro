@@ -17,6 +17,9 @@ describe('App', () => {
     expect(
       screen.getByRole('heading', { name: /tu navi lista para/i }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'Ingresar con Google' }),
+    ).toHaveAttribute('href', '/v1/auth/google?returnTo=/');
     expect(await screen.findByText('Sistema operativo')).toBeInTheDocument();
 
     vi.unstubAllGlobals();

@@ -7,13 +7,16 @@ COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml tsconfig.base.json ./
 COPY apps/backend/package.json apps/backend/package.json
 COPY apps/frontend/package.json apps/frontend/package.json
 COPY packages/contracts/package.json packages/contracts/package.json
+COPY packages/database/package.json packages/database/package.json
 
 RUN pnpm install --frozen-lockfile
 
 COPY apps/backend apps/backend
 COPY packages/contracts packages/contracts
+COPY packages/database packages/database
 
 RUN pnpm --filter @dracing/contracts build \
+    && pnpm --filter @dracing/database build \
     && pnpm --filter @dracing/backend build
 
 FROM node:20-alpine AS runtime
@@ -23,9 +26,12 @@ WORKDIR /app
 
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/apps/backend/node_modules ./apps/backend/node_modules
+COPY --from=build /app/packages/database/node_modules ./packages/database/node_modules
 COPY --from=build /app/apps/backend/package.json ./apps/backend/package.json
 COPY --from=build /app/apps/backend/dist ./apps/backend/dist
 COPY --from=build /app/packages/contracts ./packages/contracts
+COPY --from=build /app/packages/database/package.json ./packages/database/package.json
+COPY --from=build /app/packages/database/dist ./packages/database/dist
 
 USER node
 EXPOSE 3000

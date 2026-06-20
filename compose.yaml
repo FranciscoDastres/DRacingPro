@@ -7,7 +7,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-dracing}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dracing}
       POSTGRES_USER: ${POSTGRES_USER:-dracing}
-      TZ: America/Santiago
+      TZ: UTC
     ports:
       - '127.0.0.1:${POSTGRES_PORT:-5432}:5432'
     volumes:
@@ -37,11 +37,17 @@ services:
       context: .
       dockerfile: apps/backend/Dockerfile
     environment:
+      API_ORIGIN: http://localhost:${API_PORT:-3000}
       APP_ORIGIN: http://localhost:${APP_PORT:-5173}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
       DATABASE_URL: postgresql://${POSTGRES_USER:-dracing}:${POSTGRES_PASSWORD:-dracing}@postgres:5432/${POSTGRES_DB:-dracing}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:3000/v1/auth/google/callback}
       HOST: 0.0.0.0
       NODE_ENV: production
       PORT: 3000
+      SESSION_SECRET: ${SESSION_SECRET:-development-session-secret-change-me-now}
       TZ: America/Santiago
     ports:
       - '127.0.0.1:${API_PORT:-3000}:3000'
