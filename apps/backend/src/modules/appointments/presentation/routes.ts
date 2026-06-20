@@ -1,5 +1,6 @@
 import {
   AvailabilityRequestSchema,
+  CancelAppointmentSchema,
   CreateMotorcycleStatusUpdateSchema,
   CreateAppointmentSchema,
   UpdateAppointmentStatusSchema,
@@ -30,6 +31,7 @@ export interface AppointmentRoutesOptions {
   appointments: Pick<
     AppointmentService,
     | 'addMotorcycleUpdate'
+    | 'cancel'
     | 'create'
     | 'getAvailability'
     | 'getTimeline'
@@ -117,6 +119,34 @@ export const appointmentRoutes: FastifyPluginAsync<
       }
       if (error instanceof AppointmentInputError) {
         return reply.status(400).send({ error: error.message });
+      }
+      throw error;
+    }
+  });
+
+  app.patch('/appointments/:id/cancel', async (request, reply) => {
+    if (!hasTrustedOrigin(request, options.appOrigin)) {
+      return reply.status(403).send({ error: 'invalid_origin' });
+    }
+    const user = await requireUser(request, reply, options.sessions);
+    if (!user) return;
+
+    const params = appointmentParamsSchema.safeParse(request.params);
+    const input = CancelAppointmentSchema.safeParse(request.body ?? {});
+    if (!params.success || !input.success) {
+      return reply.status(400).send({ error: 'validation_error' });
+    }
+
+    try {
+      return reply.send(
+        await options.appointments.cancel(user.id, params.data.id, input.data),
+      );
+    } catch (error) {
+      if (error instanceof AppointmentTransitionError) {
+        return reply.status(409).send({ error: 'invalid_status_transition' });
+      }
+      if (error instanceof AppointmentInputError) {
+        return reply.status(404).send({ error: error.message });
       }
       throw error;
     }
