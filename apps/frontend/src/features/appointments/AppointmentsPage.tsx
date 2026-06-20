@@ -6,6 +6,7 @@ import type {
 } from '@dracing/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import { apiClient } from '../../lib/api-client';
 
@@ -246,6 +247,12 @@ export function AppointmentsPage() {
                 <p className="text-accent mt-1 text-xs">
                   {statusLabel(item.status)}
                 </p>
+                <Link
+                  className="text-muted hover:text-accent mt-2 inline-block text-xs font-semibold"
+                  to={`/app/appointments/${item.id}`}
+                >
+                  Ver avance →
+                </Link>
               </div>
             </article>
           ))}
