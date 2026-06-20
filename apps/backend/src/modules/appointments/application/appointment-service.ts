@@ -91,7 +91,7 @@ export class AppointmentService {
         if (availableBays.length > 0 && capacity > 0) {
           slots.push({
             endsAt: endsAt.toISOString(),
-            startsAt: startsAt.toISOString(),
+            startsAt: new Date(startsAt).toISOString(),
           });
         }
       }
