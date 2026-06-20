@@ -83,7 +83,7 @@ En producción, las URLs deben ser HTTPS y `COOKIE_SECURE=true`. Si se cambian
 `API_PORT` o `APP_PORT`, también se deben actualizar las URLs registradas en
 Google y las variables `API_ORIGIN`, `APP_ORIGIN` y `GOOGLE_REDIRECT_URI`.
 
-Endpoints disponibles en Fase 2:
+Endpoints principales implementados:
 
 ```text
 GET    /v1/auth/google
@@ -95,4 +95,19 @@ GET    /v1/motorcycles
 POST   /v1/motorcycles
 PATCH  /v1/motorcycles/:id
 DELETE /v1/motorcycles/:id
+GET    /v1/availability
+GET    /v1/appointments
+POST   /v1/appointments
+PATCH  /v1/appointments/:id/cancel
+GET    /v1/appointments/:id/timeline
+GET    /v1/notifications
+GET    /v1/admin/appointments
+PATCH  /v1/admin/appointments/:id/status
+POST   /v1/admin/appointments/:id/motorcycle-updates
+GET    /v1/admin/workshop/services
+POST   /v1/admin/workshop/services
+GET    /v1/admin/workshop/hours
+POST   /v1/admin/workshop/hours
+GET    /v1/admin/workshop/exceptions
+POST   /v1/admin/workshop/exceptions
 ```
