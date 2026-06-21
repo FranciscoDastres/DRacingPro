@@ -1,15 +1,32 @@
 @import 'tailwindcss';
 
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url('/fonts/inter-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 600 800;
+  font-display: swap;
+  src: url('/fonts/montserrat-latin.woff2') format('woff2');
+}
+
 @theme {
-  --color-background: #080b10;
-  --color-surface: #111722;
-  --color-foreground: #f4f7fa;
-  --color-muted: #9aa6b2;
-  --color-primary: #f04438;
-  --color-accent: #27d3c2;
+  --color-background: #090909;
+  --color-surface: #141414;
+  --color-foreground: #f4f4f4;
+  --color-muted: #a4a4a4;
+  --color-primary: #e60023;
+  --color-accent: #ff2948;
   --color-success: #32d583;
   --color-warning: #fdb022;
-  --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Montserrat', 'Inter', ui-sans-serif, system-ui, sans-serif;
 }
 
 :root {
@@ -22,6 +39,7 @@
 html {
   background: var(--color-background);
   scroll-behavior: smooth;
+  scroll-padding-top: 168px;
 }
 
 body {
@@ -30,11 +48,246 @@ body {
   min-height: 100vh;
 }
 
-button,
-a {
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+p,
+li {
+  line-height: 1.6;
+}
+
+a,
+button {
   -webkit-tap-highlight-color: transparent;
 }
 
+button,
+.landing-primary-button,
+.landing-secondary-button,
+.landing-floating-cta {
+  font-family: var(--font-display);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 4px;
+}
+
 ::selection {
-  background: color-mix(in srgb, var(--color-accent) 35%, transparent);
+  background: color-mix(in srgb, var(--color-primary) 45%, transparent);
+}
+
+.landing-nav-link {
+  position: relative;
+  color: #c8c8c8;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: color 180ms ease;
+}
+
+.landing-nav-link::after {
+  position: absolute;
+  right: 0;
+  bottom: -0.6rem;
+  left: 0;
+  height: 2px;
+  content: '';
+  background: var(--color-primary);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 180ms ease;
+}
+
+.landing-nav-link:hover {
+  color: #f4f4f4;
+}
+
+.landing-nav-link:hover::after {
+  transform: scaleX(1);
+}
+
+.landing-primary-button,
+.landing-secondary-button {
+  display: inline-flex;
+  min-height: 3rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  border-radius: 9999px;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  transition:
+    transform 180ms ease,
+    color 180ms ease,
+    background-color 180ms ease,
+    border-color 180ms ease;
+}
+
+.landing-primary-button {
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
+  color: white;
+  box-shadow: 0 14px 40px rgb(230 0 35 / 22%);
+}
+
+.landing-primary-button:hover {
+  border-color: #ff2343;
+  background: #ff2343;
+  transform: translateY(-2px);
+}
+
+.landing-secondary-button {
+  border: 1px solid rgb(255 255 255 / 18%);
+  background: rgb(255 255 255 / 5%);
+  color: #f4f4f4;
+}
+
+.landing-secondary-button:hover {
+  border-color: rgb(255 255 255 / 42%);
+  background: rgb(255 255 255 / 10%);
+}
+
+.landing-hero {
+  background: #111;
+}
+
+.landing-hero-image,
+.landing-detail-image {
+  background-color: #171717;
+  background-image: url('/images/navi-service-hero.webp');
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.landing-hero-image {
+  background-position: 62% center;
+  transform: scale(1.015);
+}
+
+.landing-detail-image {
+  background-position: 68% center;
+}
+
+.landing-hero-overlay {
+  background:
+    linear-gradient(
+      90deg,
+      rgb(0 0 0 / 96%) 0%,
+      rgb(0 0 0 / 82%) 35%,
+      rgb(0 0 0 / 28%) 72%,
+      rgb(0 0 0 / 12%) 100%
+    ),
+    linear-gradient(0deg, rgb(0 0 0 / 55%) 0%, transparent 42%),
+    radial-gradient(circle at 70% 50%, transparent 20%, rgb(0 0 0 / 26%) 100%);
+}
+
+.landing-category-nav {
+  border-top: 1px solid rgb(255 255 255 / 10%);
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
+  background: #111;
+  box-shadow: 0 14px 35px rgb(0 0 0 / 20%);
+}
+
+.landing-category-nav a {
+  position: relative;
+  flex: none;
+  padding: 1.35rem 0;
+  color: #a7a7a7;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: color 180ms ease;
+}
+
+.landing-category-nav a:hover,
+.landing-category-nav a.is-active {
+  color: #fff;
+}
+
+.landing-category-nav a.is-active::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 3px;
+  content: '';
+  background: var(--color-primary);
+}
+
+.landing-floating-cta {
+  position: fixed;
+  z-index: 35;
+  right: 1rem;
+  bottom: 1rem;
+  display: inline-flex;
+  min-height: 3.1rem;
+  align-items: center;
+  gap: 0.65rem;
+  border-radius: 9999px;
+  border: 1px solid rgb(255 255 255 / 20%);
+  background: var(--color-primary);
+  padding: 0.8rem 1rem;
+  color: white;
+  font-size: 0.68rem;
+  font-weight: 700;
+  box-shadow: 0 16px 40px rgb(0 0 0 / 34%);
+  transition:
+    background-color 180ms ease,
+    transform 180ms ease;
+}
+
+.landing-floating-cta:hover {
+  background: #ff2343;
+  transform: translateY(-2px);
+}
+
+@media (max-width: 639px) {
+  .landing-hero-image {
+    background-position: 69% center;
+  }
+
+  .landing-hero-overlay {
+    background:
+      linear-gradient(
+        0deg,
+        rgb(0 0 0 / 98%) 0%,
+        rgb(0 0 0 / 80%) 48%,
+        rgb(0 0 0 / 26%) 100%
+      ),
+      linear-gradient(90deg, rgb(0 0 0 / 58%), transparent);
+  }
+
+  .landing-floating-cta span {
+    display: none;
+  }
+
+  .landing-floating-cta {
+    width: 3.25rem;
+    padding: 0;
+    justify-content: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }
