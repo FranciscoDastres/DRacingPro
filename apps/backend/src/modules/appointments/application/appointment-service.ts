@@ -53,7 +53,7 @@ export class AppointmentService {
       }),
       this.database.service_bays.findMany({ where: { is_active: true } }),
       this.database.appointments.findMany({
-        select: { ends_at: true, service_bay_id: true, starts_at: true },
+        select: { ends_at: true, starts_at: true },
         where: {
           ends_at: { gt: dayStart },
           starts_at: { lt: dayEnd },
@@ -83,21 +83,16 @@ export class AppointmentService {
           endsAt,
           exceptions,
         );
-        const availableBays = bays.filter(
-          (bay) =>
-            !appointments.some(
-              (appointment) =>
-                appointment.service_bay_id === bay.id &&
-                overlaps(
-                  startsAt,
-                  endsAt,
-                  appointment.starts_at,
-                  appointment.ends_at,
-                ),
-            ),
+        const hasConflictingAppointment = appointments.some((appointment) =>
+          overlaps(
+            startsAt,
+            endsAt,
+            appointment.starts_at,
+            appointment.ends_at,
+          ),
         );
-        const capacity = capacityOverride ?? availableBays.length;
-        if (availableBays.length > 0 && capacity > 0) {
+        const capacity = capacityOverride ?? bays.length;
+        if (!hasConflictingAppointment && bays.length > 0 && capacity > 0) {
           slots.push({
             endsAt: endsAt.toISOString(),
             startsAt: new Date(startsAt).toISOString(),
@@ -126,7 +121,7 @@ export class AppointmentService {
 
     return this.database.$transaction(
       async (transaction) => {
-        await transaction.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${input.startsAt}))`;
+        await transaction.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('workshop_appointments'))`;
         const motorcycle = await transaction.motorcycles.findFirst({
           where: {
             id: input.motorcycleId,
@@ -151,22 +146,21 @@ export class AppointmentService {
         const endsAt = new Date(
           requestedStart.getTime() + durationMinutes * 60_000,
         );
-        const busyBays = await transaction.appointments.findMany({
-          select: { service_bay_id: true },
-          where: {
-            ends_at: { gt: requestedStart },
-            starts_at: { lt: endsAt },
-            status: { in: [...ACTIVE_STATUSES] },
+        const conflictingAppointment = await transaction.appointments.findFirst(
+          {
+            select: { id: true },
+            where: {
+              ends_at: { gt: requestedStart },
+              starts_at: { lt: endsAt },
+              status: { in: [...ACTIVE_STATUSES] },
+            },
           },
-        });
+        );
+        if (conflictingAppointment) throw new AppointmentConflictError();
+
         const bay = await transaction.service_bays.findFirst({
           orderBy: { name: 'asc' },
-          where: {
-            id: {
-              notIn: busyBays.map((appointment) => appointment.service_bay_id),
-            },
-            is_active: true,
-          },
+          where: { is_active: true },
         });
         if (!bay) throw new AppointmentConflictError();
 
