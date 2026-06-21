@@ -1,6 +1,7 @@
 import type { DatabaseClient } from '@dracing/database';
 
 import {
+  AppointmentConflictError,
   AppointmentInputError,
   AppointmentService,
   AppointmentTransitionError,
@@ -8,6 +9,16 @@ import {
 
 const customerUserId = '9d8ce4e1-1e2b-4a98-beb6-c96e8d5e63f2';
 const appointmentId = '78c865ca-8224-4e9e-a2e2-a9eddf4fb844';
+const primaryServiceBay = {
+  description: 'Bahía principal',
+  id: '439afc20-8e91-4196-9043-10a3eaf9f3b2',
+  name: 'Bahía 1',
+};
+const secondaryServiceBay = {
+  description: 'Bahía secundaria',
+  id: '8cb0a35b-819b-488d-84ec-98f0536cb9ec',
+  name: 'Bahía 2',
+};
 const rawAppointment = {
   appointment_services: [
     {
@@ -24,6 +35,7 @@ const rawAppointment = {
     model: 'NAVI',
     nickname: 'La Roja',
   },
+  service_bay_id: primaryServiceBay.id,
   starts_at: new Date('2099-01-15T13:00:00.000Z'),
   status: 'requested' as const,
   version: 1,
@@ -91,6 +103,7 @@ describe('AppointmentService.listAdmin', () => {
           email: 'cliente@example.com',
           id: customerUserId,
         },
+        service_bays: primaryServiceBay,
       },
     ]);
     const database = {
@@ -119,6 +132,53 @@ describe('AppointmentService.listAdmin', () => {
   });
 });
 
+describe('AppointmentService.reassignServiceBay', () => {
+  it('moves an active appointment and records an audit event', async () => {
+    const { service, transaction } = createReassignmentService(false);
+
+    const result = await service.reassignServiceBay(
+      customerUserId,
+      appointmentId,
+      { serviceBayId: secondaryServiceBay.id },
+    );
+
+    expect(result.serviceBay).toEqual(secondaryServiceBay);
+    expect(transaction.appointments.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          service_bay_id: secondaryServiceBay.id,
+          version: { increment: 1 },
+        },
+        where: { id: appointmentId, version: 1 },
+      }),
+    );
+    expect(transaction.audit_logs.create).toHaveBeenCalledWith({
+      data: {
+        action: 'appointment.service_bay_reassigned',
+        actor_user_id: customerUserId,
+        entity_id: appointmentId,
+        entity_type: 'appointment',
+        metadata: {
+          fromServiceBayId: primaryServiceBay.id,
+          toServiceBayId: secondaryServiceBay.id,
+        },
+      },
+    });
+  });
+
+  it('rejects a target bay occupied by another active appointment', async () => {
+    const { service, transaction } = createReassignmentService(true);
+
+    await expect(
+      service.reassignServiceBay(customerUserId, appointmentId, {
+        serviceBayId: secondaryServiceBay.id,
+      }),
+    ).rejects.toBeInstanceOf(AppointmentConflictError);
+    expect(transaction.appointments.update).not.toHaveBeenCalled();
+    expect(transaction.audit_logs.create).not.toHaveBeenCalled();
+  });
+});
+
 function createService(current: typeof rawAppointment | null | CheckedIn) {
   const transaction = {
     appointments: {
@@ -144,3 +204,42 @@ function createService(current: typeof rawAppointment | null | CheckedIn) {
 type CheckedIn = Omit<typeof rawAppointment, 'status'> & {
   status: 'checked_in';
 };
+
+function createReassignmentService(hasConflict: boolean) {
+  const adminAppointment = {
+    ...rawAppointment,
+    service_bays: primaryServiceBay,
+    users: {
+      display_name: 'Cliente NAVI',
+      email: 'cliente@example.com',
+      id: customerUserId,
+    },
+  };
+  const transaction = {
+    $executeRaw: vi.fn(async () => undefined),
+    appointments: {
+      findFirst: vi.fn(async () =>
+        hasConflict ? { id: 'occupied-appointment' } : null,
+      ),
+      findUnique: vi.fn(async () => adminAppointment),
+      update: vi.fn(async () => ({
+        ...adminAppointment,
+        service_bay_id: secondaryServiceBay.id,
+        service_bays: secondaryServiceBay,
+      })),
+    },
+    audit_logs: {
+      create: vi.fn(async () => undefined),
+    },
+    service_bays: {
+      findFirst: vi.fn(async () => secondaryServiceBay),
+    },
+  };
+  const database = {
+    $transaction: async (
+      callback: (value: typeof transaction) => Promise<unknown>,
+    ) => callback(transaction),
+  } as unknown as DatabaseClient;
+
+  return { service: new AppointmentService(database), transaction };
+}
