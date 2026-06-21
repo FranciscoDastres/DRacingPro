@@ -27,8 +27,8 @@ export function WorkshopSettingsPage() {
   const [duration, setDuration] = useState(60);
   const [price, setPrice] = useState(0);
   const [weekday, setWeekday] = useState(1);
-  const [opensAt, setOpensAt] = useState('09:00');
-  const [closesAt, setClosesAt] = useState('18:00');
+  const [opensAt, setOpensAt] = useState('09:30');
+  const [closesAt, setClosesAt] = useState('14:00');
   const [exceptionStart, setExceptionStart] = useState('');
   const [exceptionEnd, setExceptionEnd] = useState('');
   const [exceptionReason, setExceptionReason] = useState('');
@@ -80,7 +80,7 @@ export function WorkshopSettingsPage() {
       apiClient.post('/v1/admin/workshop/hours', {
         closesAt,
         opensAt,
-        slotMinutes: 30,
+        slotMinutes: 45,
         validFrom: new Date().toISOString().slice(0, 10),
         weekday,
       }),
@@ -209,6 +209,10 @@ export function WorkshopSettingsPage() {
 
       <section className="bg-surface mt-6 rounded-2xl border border-white/10 p-6">
         <h2 className="text-xl font-bold">Horario semanal</h2>
+        <p className="text-muted mt-2 text-sm">
+          Los inicios se ofrecen cada 45 minutos. Registra 09:30–14:00 y
+          15:00–18:00 para mantener la hora de colación bloqueada.
+        </p>
         <div className="mt-5 flex flex-wrap gap-3">
           <select
             aria-label="Día de la semana"
