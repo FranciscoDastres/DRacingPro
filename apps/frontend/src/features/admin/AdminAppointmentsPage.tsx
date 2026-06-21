@@ -2,6 +2,7 @@ import type {
   AdminAppointment,
   Appointment,
   CreateMotorcycleStatusUpdateInput,
+  ServiceBay,
 } from '@dracing/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -44,6 +45,10 @@ export function AdminAppointmentsPage() {
   const [updatingAppointmentId, setUpdatingAppointmentId] = useState<
     string | null
   >(null);
+  const [reassigningAppointmentId, setReassigningAppointmentId] = useState<
+    string | null
+  >(null);
+  const [selectedServiceBayId, setSelectedServiceBayId] = useState('');
   const [progressStatus, setProgressStatus] =
     useState<CreateMotorcycleStatusUpdateInput['progressStatus']>('diagnosing');
   const [message, setMessage] = useState('');
@@ -55,6 +60,11 @@ export function AdminAppointmentsPage() {
         `/v1/admin/appointments?from=${range.from}&to=${range.to}`,
       ),
     queryKey: ['admin', 'appointments', range.from, range.to],
+  });
+  const serviceBays = useQuery({
+    queryFn: () => apiClient.get<ServiceBay[]>('/v1/admin/service-bays'),
+    queryKey: ['admin', 'service-bays'],
+    staleTime: 5 * 60_000,
   });
   const statusMutation = useMutation({
     mutationFn: ({
@@ -83,6 +93,26 @@ export function AdminAppointmentsPage() {
     onSuccess: () => {
       setMessage('');
       setUpdatingAppointmentId(null);
+    },
+  });
+  const reassignMutation = useMutation({
+    mutationFn: ({
+      appointmentId,
+      serviceBayId,
+    }: {
+      appointmentId: string;
+      serviceBayId: string;
+    }) =>
+      apiClient.patch<AdminAppointment>(
+        `/v1/admin/appointments/${appointmentId}/service-bay`,
+        { serviceBayId },
+      ),
+    onSuccess: async () => {
+      setReassigningAppointmentId(null);
+      setSelectedServiceBayId('');
+      await queryClient.invalidateQueries({
+        queryKey: ['admin', 'appointments'],
+      });
     },
   });
 
@@ -223,6 +253,9 @@ export function AdminAppointmentsPage() {
                     .map((service) => service.name)
                     .join(', ')}
                 </p>
+                <p className="text-muted mt-2 text-xs">
+                  Bahía asignada: {appointment.serviceBay.name}
+                </p>
               </div>
               <div className="text-right">
                 <p className="font-semibold">
@@ -239,7 +272,8 @@ export function AdminAppointmentsPage() {
             </div>
 
             {(nextStatuses[appointment.status].length > 0 ||
-              canPublishProgress(appointment.status)) && (
+              canPublishProgress(appointment.status) ||
+              canReassignServiceBay(appointment.status)) && (
               <div className="mt-6 flex flex-wrap gap-2 border-t border-white/10 pt-5">
                 {nextStatuses[appointment.status].map((status) => (
                   <button
@@ -272,6 +306,85 @@ export function AdminAppointmentsPage() {
                   >
                     Publicar avance
                   </button>
+                )}
+                {canReassignServiceBay(appointment.status) && (
+                  <button
+                    aria-label={`Reasignar bahía de ${appointment.motorcycle.label}`}
+                    className="text-muted hover:text-foreground rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold"
+                    onClick={() => {
+                      reassignMutation.reset();
+                      setSelectedServiceBayId(appointment.serviceBay.id);
+                      setReassigningAppointmentId((current) =>
+                        current === appointment.id ? null : appointment.id,
+                      );
+                    }}
+                    type="button"
+                  >
+                    Reasignar bahía
+                  </button>
+                )}
+              </div>
+            )}
+
+            {reassigningAppointmentId === appointment.id && (
+              <div className="bg-background mt-5 rounded-xl p-4">
+                <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto]">
+                  <select
+                    aria-label={`Nueva bahía para ${appointment.motorcycle.label}`}
+                    className="bg-surface focus:border-accent rounded-lg border border-white/10 px-3 py-2 text-sm outline-none"
+                    onChange={(event) =>
+                      setSelectedServiceBayId(event.target.value)
+                    }
+                    value={selectedServiceBayId}
+                  >
+                    {serviceBays.data?.map((serviceBay) => (
+                      <option key={serviceBay.id} value={serviceBay.id}>
+                        {serviceBay.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    className="bg-accent text-background rounded-lg px-4 py-2 text-xs font-bold disabled:opacity-40"
+                    disabled={
+                      !selectedServiceBayId ||
+                      selectedServiceBayId === appointment.serviceBay.id ||
+                      reassignMutation.isPending
+                    }
+                    onClick={() =>
+                      reassignMutation.mutate({
+                        appointmentId: appointment.id,
+                        serviceBayId: selectedServiceBayId,
+                      })
+                    }
+                    type="button"
+                  >
+                    {reassignMutation.isPending
+                      ? 'Reasignando…'
+                      : 'Guardar bahía'}
+                  </button>
+                  <button
+                    className="text-muted hover:text-foreground rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold"
+                    disabled={reassignMutation.isPending}
+                    onClick={() => {
+                      reassignMutation.reset();
+                      setReassigningAppointmentId(null);
+                      setSelectedServiceBayId('');
+                    }}
+                    type="button"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+                {serviceBays.isError && (
+                  <p className="text-primary mt-3 text-sm" role="alert">
+                    No fue posible cargar las bahías disponibles.
+                  </p>
+                )}
+                {reassignMutation.isError && (
+                  <p className="text-primary mt-3 text-sm" role="alert">
+                    La bahía seleccionada ya no está disponible para este
+                    horario.
+                  </p>
                 )}
               </div>
             )}
@@ -363,4 +476,14 @@ function formatAgendaRange(
 
 function canPublishProgress(status: Appointment['status']): boolean {
   return !['cancelled', 'completed', 'no_show'].includes(status);
+}
+
+function canReassignServiceBay(status: Appointment['status']): boolean {
+  return [
+    'requested',
+    'confirmed',
+    'checked_in',
+    'in_service',
+    'ready',
+  ].includes(status);
 }
