@@ -1,13 +1,13 @@
 import type {
   AdminAppointment,
-  AdminAppointmentFilters,
   Appointment,
   AvailabilitySlot,
-  CancelAppointmentInput,
   CustomerMotorcycleUpdate,
+  ServiceBay,
 } from '@dracing/contracts';
 
 import { buildApp } from '../src/app.js';
+import type { AppointmentRoutesOptions } from '../src/modules/appointments/presentation/routes.js';
 import { SessionService } from '../src/modules/auth/application/session-service.js';
 import {
   MemoryAuthRepository,
@@ -31,6 +31,16 @@ const cancelledAppointment: Appointment = {
   ...appointment,
   status: 'cancelled',
 };
+const serviceBay: ServiceBay = {
+  description: 'Bahía principal',
+  id: '439afc20-8e91-4196-9043-10a3eaf9f3b2',
+  name: 'Bahía 1',
+};
+const secondaryServiceBay: ServiceBay = {
+  description: 'Bahía secundaria',
+  id: '8cb0a35b-819b-488d-84ec-98f0536cb9ec',
+  name: 'Bahía 2',
+};
 const adminAppointment: AdminAppointment = {
   ...appointment,
   customer: {
@@ -38,6 +48,7 @@ const adminAppointment: AdminAppointment = {
     email: testUser.email,
     id: testUser.id,
   },
+  serviceBay,
 };
 const motorcycleUpdate: CustomerMotorcycleUpdate = {
   appointmentId: appointment.id,
@@ -84,7 +95,7 @@ describe('appointment routes', () => {
 
   it('cancels an eligible appointment for its authenticated owner', async () => {
     const cancel = vi.fn(async () => cancelledAppointment);
-    const app = await createApp(false, cancel);
+    const app = await createApp(false, { cancel });
 
     const rejected = await app.inject({
       headers: { cookie: 'drp_session=test-session' },
@@ -134,7 +145,7 @@ describe('appointment routes', () => {
 
   it('passes validated date and status filters to the admin agenda', async () => {
     const listAdmin = vi.fn(async () => [adminAppointment]);
-    const app = await createApp(true, undefined, listAdmin);
+    const app = await createApp(true, { listAdmin });
     const response = await app.inject({
       headers: { cookie: 'drp_session=test-session' },
       method: 'GET',
@@ -147,6 +158,44 @@ describe('appointment routes', () => {
       statuses: ['requested', 'confirmed'],
       to: '2027-01-19',
     });
+    await app.close();
+  });
+
+  it('lists service bays and reassigns an appointment as administrator', async () => {
+    const reassigned = {
+      ...adminAppointment,
+      serviceBay: secondaryServiceBay,
+    };
+    const reassignServiceBay = vi.fn(async () => reassigned);
+    const app = await createApp(true, {
+      listServiceBays: async () => [serviceBay, secondaryServiceBay],
+      reassignServiceBay,
+    });
+
+    const bays = await app.inject({
+      headers: { cookie: 'drp_session=test-session' },
+      method: 'GET',
+      url: '/v1/admin/service-bays',
+    });
+    expect(bays.statusCode).toBe(200);
+    expect(bays.json()).toEqual([serviceBay, secondaryServiceBay]);
+
+    const response = await app.inject({
+      headers: {
+        cookie: 'drp_session=test-session',
+        origin: 'http://localhost:5173',
+      },
+      method: 'PATCH',
+      payload: { serviceBayId: secondaryServiceBay.id },
+      url: `/v1/admin/appointments/${appointment.id}/service-bay`,
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual(reassigned);
+    expect(reassignServiceBay).toHaveBeenCalledWith(
+      testUser.id,
+      appointment.id,
+      { serviceBayId: secondaryServiceBay.id },
+    );
     await app.close();
   });
 
@@ -165,14 +214,7 @@ describe('appointment routes', () => {
 
 async function createApp(
   admin = false,
-  cancel: (
-    customerUserId: string,
-    appointmentId: string,
-    input: CancelAppointmentInput,
-  ) => Promise<Appointment> = async () => cancelledAppointment,
-  listAdmin: (
-    filters?: AdminAppointmentFilters,
-  ) => Promise<AdminAppointment[]> = async () => [adminAppointment],
+  overrides: Partial<AppointmentRoutesOptions['appointments']> = {},
 ) {
   const authRepository = new MemoryAuthRepository();
   if (admin) authRepository.user = { ...testUser, role: 'admin' };
@@ -183,7 +225,7 @@ async function createApp(
       appOrigin: 'http://localhost:5173',
       appointments: {
         addMotorcycleUpdate: async () => ({ id: 'update-id' }),
-        cancel,
+        cancel: async () => cancelledAppointment,
         create: async () => appointment,
         getAvailability: async () => [slot],
         getTimeline: async () => ({
@@ -191,9 +233,12 @@ async function createApp(
           updates: [motorcycleUpdate],
         }),
         list: async () => [],
-        listAdmin,
+        listAdmin: async () => [adminAppointment],
         listCustomerUpdates: async () => [motorcycleUpdate],
+        listServiceBays: async () => [serviceBay, secondaryServiceBay],
+        reassignServiceBay: async () => adminAppointment,
         updateStatus: async () => appointment,
+        ...overrides,
       },
       sessions,
     },
