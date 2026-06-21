@@ -103,6 +103,8 @@ POST   /v1/appointments
 PATCH  /v1/appointments/:id/cancel
 GET    /v1/admin/appointments?from=&to=&statuses=
 PATCH  /v1/admin/appointments/:id/status
+PATCH  /v1/admin/appointments/:id/service-bay
+GET    /v1/admin/service-bays
 POST   /v1/admin/appointments/:id/motorcycle-updates
 ```
 
