@@ -103,6 +103,8 @@ GET    /v1/appointments/:id/timeline
 GET    /v1/notifications
 GET    /v1/admin/appointments
 PATCH  /v1/admin/appointments/:id/status
+PATCH  /v1/admin/appointments/:id/service-bay
+GET    /v1/admin/service-bays
 POST   /v1/admin/appointments/:id/motorcycle-updates
 GET    /v1/admin/workshop/services
 POST   /v1/admin/workshop/services
