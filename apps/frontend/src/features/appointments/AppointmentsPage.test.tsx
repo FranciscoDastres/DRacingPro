@@ -1,4 +1,9 @@
-import type { Appointment } from '@dracing/contracts';
+import type {
+  Appointment,
+  AvailabilitySlot,
+  Motorcycle,
+  Service,
+} from '@dracing/contracts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -20,6 +25,33 @@ const appointment: Appointment = {
   ],
   startsAt: '2099-01-15T13:00:00.000Z',
   status: 'requested',
+};
+const motorcycle: Motorcycle = {
+  color: 'Rojo',
+  createdAt: '2026-06-01T12:00:00.000Z',
+  id: appointment.motorcycle.id,
+  licensePlate: 'ABCD12',
+  make: 'Honda',
+  model: 'NAVI',
+  modelYear: 2024,
+  nickname: appointment.motorcycle.label,
+  notes: null,
+  odometerKm: 1200,
+  updatedAt: '2026-06-01T12:00:00.000Z',
+  vin: null,
+};
+const service: Service = {
+  code: 'DIAGNOSTICO',
+  currency: 'CLP',
+  description: 'Diagnóstico inicial',
+  durationMinutes: 45,
+  id: appointment.services[0]!.id,
+  name: 'Diagnóstico general',
+  price: 15000,
+};
+const availableSlot: AvailabilitySlot = {
+  endsAt: '2026-06-22T14:15:00.000Z',
+  startsAt: '2026-06-22T13:30:00.000Z',
 };
 
 describe('AppointmentsPage', () => {
@@ -76,6 +108,82 @@ describe('AppointmentsPage', () => {
         }),
       ),
     );
+
+    vi.unstubAllGlobals();
+  });
+
+  it('selects a service, an available 45-minute slot and creates the appointment', async () => {
+    const fetchMock = vi.fn(async (input: string, init?: RequestInit) => {
+      const isCreation =
+        input === '/v1/appointments' && init?.method === 'POST';
+      const payload = isCreation
+        ? {
+            ...appointment,
+            endsAt: availableSlot.endsAt,
+            startsAt: availableSlot.startsAt,
+          }
+        : input === '/v1/motorcycles'
+          ? [motorcycle]
+          : input === '/v1/services'
+            ? [service]
+            : input.startsWith('/v1/availability?')
+              ? [availableSlot]
+              : [];
+
+      return {
+        headers: { get: () => 'application/json' },
+        json: async () => payload,
+        ok: true,
+        status: isCreation ? 201 : 200,
+      };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <MemoryRouter>
+        <QueryClientProvider client={queryClient}>
+          <AppointmentsPage />
+        </QueryClientProvider>
+      </MemoryRouter>,
+    );
+
+    const motorcycleSelect = await screen.findByRole('combobox', {
+      name: 'Selecciona tu Honda NAVI',
+    });
+    await screen.findByRole('option', { name: /La Roja/ });
+    fireEvent.change(motorcycleSelect, {
+      target: { value: motorcycle.id },
+    });
+    expect(motorcycleSelect).toHaveValue(motorcycle.id);
+    fireEvent.click(
+      await screen.findByRole('checkbox', { name: /diagnóstico general/i }),
+    );
+    const slotButton = await screen.findByRole('button', { name: '09:30' });
+    fireEvent.click(slotButton);
+    expect(slotButton).toHaveAttribute('aria-pressed', 'true');
+    const confirmButton = screen.getByRole('button', {
+      name: 'Confirmar cita',
+    });
+    expect(confirmButton).toBeEnabled();
+    fireEvent.click(confirmButton);
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/v1/appointments',
+        expect.objectContaining({
+          body: JSON.stringify({
+            motorcycleId: motorcycle.id,
+            serviceIds: [service.id],
+            startsAt: availableSlot.startsAt,
+          }),
+          method: 'POST',
+        }),
+      ),
+    );
+    expect(await screen.findByText('Solicitud enviada')).toBeInTheDocument();
 
     vi.unstubAllGlobals();
   });
