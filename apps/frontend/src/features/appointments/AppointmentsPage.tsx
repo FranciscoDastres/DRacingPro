@@ -9,17 +9,29 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { apiClient } from '../../lib/api-client';
+import { AppointmentCalendar } from './AppointmentCalendar';
 
 const dateFormatter = new Intl.DateTimeFormat('es-CL', {
   dateStyle: 'medium',
+  hourCycle: 'h23',
+  timeZone: 'America/Santiago',
   timeStyle: 'short',
+});
+const selectedDateFormatter = new Intl.DateTimeFormat('es-CL', {
+  dateStyle: 'full',
+});
+const slotTimeFormatter = new Intl.DateTimeFormat('es-CL', {
+  hour: '2-digit',
+  hourCycle: 'h23',
+  minute: '2-digit',
+  timeZone: 'America/Santiago',
 });
 
 export function AppointmentsPage() {
   const queryClient = useQueryClient();
   const [motorcycleId, setMotorcycleId] = useState('');
   const [serviceIds, setServiceIds] = useState<string[]>([]);
-  const [date, setDate] = useState(getTomorrow());
+  const [date, setDate] = useState(getNextBookableDate());
   const [selectedSlot, setSelectedSlot] = useState('');
   const [cancellingAppointmentId, setCancellingAppointmentId] = useState<
     string | null
@@ -97,9 +109,17 @@ export function AppointmentsPage() {
     (total, service) => total + service.durationMinutes,
     0,
   );
+  const availableSlots = availability.data ?? [];
+  const morningSlots = availableSlots.filter(
+    (slot) => getWorkshopMinutes(slot.startsAt) < 14 * 60,
+  );
+  const afternoonSlots = availableSlots.filter(
+    (slot) => getWorkshopMinutes(slot.startsAt) >= 15 * 60,
+  );
 
   const toggleService = (id: string) => {
     setSelectedSlot('');
+    createAppointment.reset();
     setServiceIds((current) =>
       current.includes(id)
         ? current.filter((item) => item !== id)
@@ -117,7 +137,7 @@ export function AppointmentsPage() {
         Selecciona tu NAVI, los servicios y uno de los horarios disponibles.
       </p>
 
-      <div className="mt-8 grid gap-6 xl:grid-cols-[1fr_320px]">
+      <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-6">
           <section className="bg-surface rounded-2xl border border-white/10 p-6">
             <h2 className="font-bold">1. Elige tu moto</h2>
@@ -168,46 +188,96 @@ export function AppointmentsPage() {
             </div>
           </section>
 
-          <section className="bg-surface rounded-2xl border border-white/10 p-6">
-            <h2 className="font-bold">3. Fecha y horario</h2>
-            <input
-              aria-label="Fecha de la cita"
-              className="bg-background focus:border-accent mt-4 rounded-lg border border-white/10 px-3 py-3 text-sm outline-none"
-              min={new Date().toISOString().slice(0, 10)}
-              onChange={(event) => {
-                setDate(event.target.value);
-                setSelectedSlot('');
-              }}
-              type="date"
-              value={date}
-            />
-
-            <div className="mt-5 flex flex-wrap gap-2">
-              {availability.isFetching && (
-                <p className="text-muted text-sm">Buscando horarios…</p>
-              )}
-              {availability.data?.map((slot) => (
-                <button
-                  className={`rounded-lg border px-4 py-2 text-sm font-semibold transition ${
-                    selectedSlot === slot.startsAt
-                      ? 'border-accent bg-accent text-background'
-                      : 'hover:border-accent/50 border-white/10'
-                  }`}
-                  key={slot.startsAt}
-                  onClick={() => setSelectedSlot(slot.startsAt)}
-                  type="button"
-                >
-                  {new Date(slot.startsAt).toLocaleTimeString('es-CL', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </button>
-              ))}
-              {!availability.isFetching && availability.data?.length === 0 && (
-                <p className="text-muted text-sm">
-                  No hay horarios para esta selección.
+          <section className="bg-surface rounded-2xl border border-white/10 p-5 sm:p-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="font-bold">3. Fecha y horario</h2>
+                <p className="text-muted mt-2 text-sm">
+                  Selecciona un día y luego un bloque disponible de 45 minutos.
                 </p>
-              )}
+              </div>
+              <span className="border-primary/30 bg-primary/10 text-primary rounded-full border px-3 py-1.5 text-xs font-semibold">
+                09:30–18:00
+              </span>
+            </div>
+
+            <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(290px,.8fr)_1.2fr]">
+              <AppointmentCalendar
+                minDate={getToday()}
+                onChange={(nextDate) => {
+                  setDate(nextDate);
+                  setSelectedSlot('');
+                  createAppointment.reset();
+                }}
+                value={date}
+              />
+
+              <div>
+                <p className="font-display text-sm font-bold tracking-[0.06em] capitalize uppercase">
+                  {selectedDateFormatter.format(parseLocalDate(date))}
+                </p>
+                <p className="text-muted mt-2 text-xs">
+                  La colación de 14:00 a 15:00 no admite reservas.
+                </p>
+
+                {serviceIds.length === 0 ? (
+                  <div className="mt-5 rounded-xl border border-dashed border-white/15 p-6 text-center">
+                    <p className="text-sm font-semibold">
+                      Selecciona al menos un servicio
+                    </p>
+                    <p className="text-muted mt-2 text-xs">
+                      Así podremos calcular la duración y mostrar los horarios.
+                    </p>
+                  </div>
+                ) : availability.isFetching ? (
+                  <div
+                    className="mt-5 grid grid-cols-3 gap-2"
+                    aria-label="Buscando horarios"
+                  >
+                    {Array.from({ length: 6 }).map((_, index) => (
+                      <span
+                        className="h-11 animate-pulse rounded-xl bg-white/5"
+                        key={index}
+                      />
+                    ))}
+                  </div>
+                ) : availableSlots.length > 0 ? (
+                  <div className="mt-6 space-y-6">
+                    <TimeSlotGroup
+                      label="Mañana"
+                      onSelect={(slot) => {
+                        setSelectedSlot(slot);
+                        createAppointment.reset();
+                      }}
+                      selectedSlot={selectedSlot}
+                      slots={morningSlots}
+                    />
+                    <div className="text-muted flex items-center gap-3 text-[10px] font-semibold tracking-[0.12em] uppercase">
+                      <span className="h-px flex-1 bg-white/10" />
+                      Colación · 14:00–15:00
+                      <span className="h-px flex-1 bg-white/10" />
+                    </div>
+                    <TimeSlotGroup
+                      label="Tarde"
+                      onSelect={(slot) => {
+                        setSelectedSlot(slot);
+                        createAppointment.reset();
+                      }}
+                      selectedSlot={selectedSlot}
+                      slots={afternoonSlots}
+                    />
+                  </div>
+                ) : (
+                  <div className="border-primary/20 bg-primary/5 mt-5 rounded-xl border p-5">
+                    <p className="text-sm font-semibold">
+                      No quedan horarios disponibles este día.
+                    </p>
+                    <p className="text-muted mt-2 text-xs">
+                      Elige otra fecha en el calendario para continuar.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </section>
         </div>
@@ -223,6 +293,14 @@ export function AppointmentsPage() {
               <dt className="text-muted">Duración</dt>
               <dd>{totalMinutes} min</dd>
             </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted">Horario</dt>
+              <dd className="text-right">
+                {selectedSlot
+                  ? dateFormatter.format(new Date(selectedSlot))
+                  : 'Por seleccionar'}
+              </dd>
+            </div>
             <div className="flex justify-between gap-4 border-t border-white/10 pt-3">
               <dt className="font-semibold">Total estimado</dt>
               <dd className="text-primary font-black">
@@ -230,6 +308,21 @@ export function AppointmentsPage() {
               </dd>
             </div>
           </dl>
+          {createAppointment.isSuccess && (
+            <div
+              className="border-success/30 bg-success/10 mt-5 rounded-xl border p-4"
+              role="status"
+            >
+              <p className="text-success text-sm font-bold">
+                Solicitud enviada
+              </p>
+              <p className="text-muted mt-1 text-xs">
+                {dateFormatter.format(
+                  new Date(createAppointment.data.startsAt),
+                )}
+              </p>
+            </div>
+          )}
           {createAppointment.isError && (
             <p className="text-primary mt-4 text-sm" role="alert">
               El horario dejó de estar disponible. Selecciona otro.
@@ -246,9 +339,7 @@ export function AppointmentsPage() {
             onClick={() => createAppointment.mutate()}
             type="button"
           >
-            {createAppointment.isPending
-              ? 'Reservando…'
-              : 'Confirmar solicitud'}
+            {createAppointment.isPending ? 'Reservando…' : 'Confirmar cita'}
           </button>
         </aside>
       </div>
@@ -371,8 +462,80 @@ export function AppointmentsPage() {
   );
 }
 
-function getTomorrow(): string {
-  return new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+function TimeSlotGroup({
+  label,
+  onSelect,
+  selectedSlot,
+  slots,
+}: {
+  label: string;
+  onSelect: (slot: string) => void;
+  selectedSlot: string;
+  slots: AvailabilitySlot[];
+}) {
+  if (slots.length === 0) return null;
+
+  return (
+    <div>
+      <p className="text-muted text-xs font-semibold tracking-[0.08em] uppercase">
+        {label}
+      </p>
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {slots.map((slot) => (
+          <button
+            aria-pressed={selectedSlot === slot.startsAt}
+            className={`rounded-xl border px-3 py-3 text-sm font-bold transition ${
+              selectedSlot === slot.startsAt
+                ? 'border-primary bg-primary text-white shadow-[0_8px_20px_rgba(230,0,35,.22)]'
+                : 'hover:border-primary/60 hover:bg-primary/10 border-white/10 bg-white/[0.035]'
+            }`}
+            key={slot.startsAt}
+            onClick={() => onSelect(slot.startsAt)}
+            type="button"
+          >
+            {slotTimeFormatter.format(new Date(slot.startsAt))}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function getToday(): string {
+  return formatLocalDate(new Date());
+}
+
+function getNextBookableDate(): string {
+  const nextDate = new Date();
+  nextDate.setDate(nextDate.getDate() + 1);
+  if (nextDate.getDay() === 0) nextDate.setDate(nextDate.getDate() + 1);
+  return formatLocalDate(nextDate);
+}
+
+function formatLocalDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function parseLocalDate(value: string): Date {
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year!, month! - 1, day!, 12);
+}
+
+function getWorkshopMinutes(value: string): number {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    hour: '2-digit',
+    hourCycle: 'h23',
+    minute: '2-digit',
+    timeZone: 'America/Santiago',
+  }).formatToParts(new Date(value));
+  const hour = Number(parts.find((part) => part.type === 'hour')?.value ?? 0);
+  const minute = Number(
+    parts.find((part) => part.type === 'minute')?.value ?? 0,
+  );
+  return hour * 60 + minute;
 }
 
 function isCustomerCancellable(appointment: Appointment): boolean {
