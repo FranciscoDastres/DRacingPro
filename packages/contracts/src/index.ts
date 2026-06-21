@@ -124,12 +124,21 @@ export const AppointmentSchema = z.object({
 
 export type Appointment = z.infer<typeof AppointmentSchema>;
 
+export const ServiceBaySchema = z.object({
+  description: z.string().nullable(),
+  id: z.uuid(),
+  name: z.string(),
+});
+
+export type ServiceBay = z.infer<typeof ServiceBaySchema>;
+
 export const AdminAppointmentSchema = AppointmentSchema.extend({
   customer: z.object({
     displayName: z.string(),
     email: z.email(),
     id: z.uuid(),
   }),
+  serviceBay: ServiceBaySchema,
 });
 
 export type AdminAppointment = z.infer<typeof AdminAppointmentSchema>;
@@ -157,6 +166,14 @@ export const AdminAppointmentFiltersSchema = z
 
 export type AdminAppointmentFilters = z.infer<
   typeof AdminAppointmentFiltersSchema
+>;
+
+export const ReassignAppointmentSchema = z.object({
+  serviceBayId: z.uuid(),
+});
+
+export type ReassignAppointmentInput = z.infer<
+  typeof ReassignAppointmentSchema
 >;
 
 export const UpdateAppointmentStatusSchema = z.object({
