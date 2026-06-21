@@ -33,7 +33,8 @@ operativa. Timeline cliente y novedades dentro de la aplicación también están
 implementados. La cancelación de citas por el cliente ya aplica propiedad,
 transiciones, auditoría y validación E2E en móvil. La agenda administrativa ya
 ofrece vistas diaria y semanal con rangos calculados en la zona del taller.
-Quedan pendientes la reasignación y automatización E2E durable.**
+La reasignación de bahía también está protegida contra solapamientos y queda
+registrada en auditoría. Queda pendiente la automatización E2E durable.**
 
 - Cliente: onboarding, motos, disponibilidad, reserva, cancelación e historial.
 - Cliente: timeline del estado de la moto y notificaciones.
