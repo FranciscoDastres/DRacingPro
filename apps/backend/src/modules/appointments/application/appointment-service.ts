@@ -9,6 +9,8 @@ import type {
   CreateMotorcycleStatusUpdateInput,
   CreateAppointmentInput,
   CustomerMotorcycleUpdate,
+  ReassignAppointmentInput,
+  ServiceBay,
   UpdateAppointmentStatusInput,
 } from '@dracing/contracts';
 import type { DatabaseClient } from '@dracing/database';
@@ -247,13 +249,21 @@ export class AppointmentService {
     return appointments.map(mapAppointment);
   }
 
+  async listServiceBays(): Promise<ServiceBay[]> {
+    const serviceBays = await this.database.service_bays.findMany({
+      orderBy: { name: 'asc' },
+      where: { is_active: true },
+    });
+    return serviceBays.map(mapServiceBay);
+  }
+
   async listAdmin(
     filters?: AdminAppointmentFilters,
   ): Promise<AdminAppointment[]> {
     const statusFilter =
       filters?.statuses ?? (!filters ? [...ACTIVE_STATUSES] : undefined);
     const appointments = await this.database.appointments.findMany({
-      include: { ...appointmentInclude, users: true },
+      include: adminAppointmentInclude,
       orderBy: { starts_at: 'asc' },
       where: {
         ...(statusFilter && { status: { in: statusFilter } }),
@@ -266,14 +276,67 @@ export class AppointmentService {
       },
     });
 
-    return appointments.map((appointment) => ({
-      ...mapAppointment(appointment),
-      customer: {
-        displayName: appointment.users.display_name,
-        email: appointment.users.email,
-        id: appointment.users.id,
-      },
-    }));
+    return appointments.map(mapAdminAppointment);
+  }
+
+  async reassignServiceBay(
+    adminUserId: string,
+    appointmentId: string,
+    input: ReassignAppointmentInput,
+  ): Promise<AdminAppointment> {
+    return this.database.$transaction(async (transaction) => {
+      const current = await transaction.appointments.findUnique({
+        include: adminAppointmentInclude,
+        where: { id: appointmentId },
+      });
+      if (!current) throw new AppointmentInputError('appointment_not_found');
+      if (!ACTIVE_STATUSES.some((status) => status === current.status)) {
+        throw new AppointmentTransitionError();
+      }
+
+      const targetBay = await transaction.service_bays.findFirst({
+        where: { id: input.serviceBayId, is_active: true },
+      });
+      if (!targetBay) throw new AppointmentInputError('service_bay_not_found');
+      if (current.service_bay_id === targetBay.id) {
+        return mapAdminAppointment(current);
+      }
+
+      await transaction.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${targetBay.id}))`;
+      const conflict = await transaction.appointments.findFirst({
+        select: { id: true },
+        where: {
+          ends_at: { gt: current.starts_at },
+          id: { not: current.id },
+          service_bay_id: targetBay.id,
+          starts_at: { lt: current.ends_at },
+          status: { in: [...ACTIVE_STATUSES] },
+        },
+      });
+      if (conflict) throw new AppointmentConflictError();
+
+      const updated = await transaction.appointments.update({
+        data: {
+          service_bay_id: targetBay.id,
+          version: { increment: 1 },
+        },
+        include: adminAppointmentInclude,
+        where: { id: appointmentId, version: current.version },
+      });
+      await transaction.audit_logs.create({
+        data: {
+          action: 'appointment.service_bay_reassigned',
+          actor_user_id: adminUserId,
+          entity_id: appointmentId,
+          entity_type: 'appointment',
+          metadata: {
+            fromServiceBayId: current.service_bay_id,
+            toServiceBayId: targetBay.id,
+          },
+        },
+      });
+      return mapAdminAppointment(updated);
+    });
   }
 
   async updateStatus(
@@ -418,6 +481,11 @@ const appointmentInclude = {
   appointment_services: true,
   motorcycles: true,
 } as const;
+const adminAppointmentInclude = {
+  ...appointmentInclude,
+  service_bays: true,
+  users: true,
+} as const;
 
 function mapAppointment(appointment: {
   appointment_services: Array<{
@@ -458,6 +526,43 @@ function mapAppointment(appointment: {
     })),
     startsAt: appointment.starts_at.toISOString(),
     status: appointment.status,
+  };
+}
+
+function mapAdminAppointment(
+  appointment: Parameters<typeof mapAppointment>[0] & {
+    service_bays: {
+      description: string | null;
+      id: string;
+      name: string;
+    };
+    users: {
+      display_name: string;
+      email: string;
+      id: string;
+    };
+  },
+): AdminAppointment {
+  return {
+    ...mapAppointment(appointment),
+    customer: {
+      displayName: appointment.users.display_name,
+      email: appointment.users.email,
+      id: appointment.users.id,
+    },
+    serviceBay: mapServiceBay(appointment.service_bays),
+  };
+}
+
+function mapServiceBay(serviceBay: {
+  description: string | null;
+  id: string;
+  name: string;
+}): ServiceBay {
+  return {
+    description: serviceBay.description,
+    id: serviceBay.id,
+    name: serviceBay.name,
   };
 }
 
