@@ -30,9 +30,13 @@ describe('App', () => {
     expect(
       screen.getByRole('heading', { name: /tu navi lista para/i }),
     ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Mi cuenta' })).toHaveAttribute(
+      'href',
+      '/v1/auth/google?returnTo=/app',
+    );
     expect(
-      screen.getByRole('link', { name: 'Ingresar con Google' }),
-    ).toHaveAttribute('href', '/v1/auth/google?returnTo=/app');
+      screen.getAllByRole('link', { name: 'Agendar una cita' })[0],
+    ).toHaveAttribute('href', '/v1/auth/google?returnTo=/app/appointments');
     expect(await screen.findByText('Sistema operativo')).toBeInTheDocument();
 
     vi.unstubAllGlobals();
