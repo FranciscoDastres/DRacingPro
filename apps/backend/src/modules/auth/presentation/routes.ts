@@ -20,6 +20,7 @@ const oauthFlowSchema = z.object({
 });
 
 export interface AuthRoutesOptions {
+  allowDevLogin?: boolean;
   apiOrigin: string;
   appOrigin: string;
   google?: GoogleOidcClient;
@@ -32,16 +33,32 @@ export const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (
   options,
 ) => {
   app.get('/google', async (request, reply) => {
-    if (!options.google) {
-      return reply.status(503).send({ error: 'google_auth_not_configured' });
-    }
-
     const query = z
       .object({ returnTo: z.string().optional() })
       .safeParse(request.query);
     const returnTo = sanitizeReturnTo(
       query.success ? query.data.returnTo : undefined,
     );
+
+    if (!options.google) {
+      // No Google credentials in local dev: sign in as a developer user
+      // and continue to the requested page so the app is usable offline.
+      if (options.allowDevLogin) {
+        const session = await options.sessions.loginAsDeveloper({
+          ipAddress: request.ip,
+          userAgent: request.headers['user-agent'],
+        });
+        setSessionCookie(
+          reply,
+          session.token,
+          session.expiresAt,
+          options.secureCookies,
+        );
+        return reply.redirect(new URL(returnTo, options.appOrigin).href);
+      }
+      return reply.status(503).send({ error: 'google_auth_not_configured' });
+    }
+
     const authorization =
       await options.google.createAuthorizationRequest(returnTo);
 
@@ -88,6 +105,26 @@ export const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (
       request.log.warn({ err: error }, 'Google authentication failed');
       return reply.status(401).send({ error: 'authentication_failed' });
     }
+  });
+
+  app.post('/dev-login', async (request, reply) => {
+    if (!options.allowDevLogin) {
+      return reply.status(404).send({ error: 'not_found' });
+    }
+
+    const session = await options.sessions.loginAsDeveloper({
+      ipAddress: request.ip,
+      userAgent: request.headers['user-agent'],
+    });
+    setSessionCookie(
+      reply,
+      session.token,
+      session.expiresAt,
+      options.secureCookies,
+    );
+
+    const response: CurrentUser = session.user;
+    return reply.send(response);
   });
 
   app.get('/me', async (request, reply) => {
