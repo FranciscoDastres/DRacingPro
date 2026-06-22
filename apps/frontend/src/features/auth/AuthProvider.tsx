@@ -3,7 +3,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type PropsWithChildren, useMemo } from 'react';
 
 import { apiClient, ApiError } from '../../lib/api-client';
-import { AuthContext, type AuthContextValue } from './auth-context';
+import {
+  AuthContext,
+  type AuthContextValue,
+  type ViewRole,
+} from './auth-context';
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const queryClient = useQueryClient();
@@ -24,21 +28,20 @@ export function AuthProvider({ children }: PropsWithChildren) {
     mutationFn: () => apiClient.post<void>('/v1/auth/logout'),
     onSuccess: () => queryClient.setQueryData(['current-user'], null),
   });
-  const devLoginMutation = useMutation({
-    mutationFn: () => apiClient.post<CurrentUser>('/v1/auth/dev-login'),
+  const signInMutation = useMutation({
+    mutationFn: (params: { email?: string; role?: ViewRole }) =>
+      apiClient.post<CurrentUser>('/v1/auth/dev-login', params),
     onSuccess: (user) => queryClient.setQueryData(['current-user'], user),
   });
 
   const value = useMemo<AuthContextValue>(
     () => ({
-      devLogin: async () => {
-        await devLoginMutation.mutateAsync();
-      },
       isLoading: userQuery.isLoading,
       logout: async () => logoutMutation.mutateAsync(),
+      signIn: (params = {}) => signInMutation.mutateAsync(params),
       user: userQuery.data ?? null,
     }),
-    [devLoginMutation, logoutMutation, userQuery.data, userQuery.isLoading],
+    [logoutMutation, signInMutation, userQuery.data, userQuery.isLoading],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
