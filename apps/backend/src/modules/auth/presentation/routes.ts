@@ -44,7 +44,7 @@ export const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (
       // No Google credentials in local dev: sign in as a developer user
       // and continue to the requested page so the app is usable offline.
       if (options.allowDevLogin) {
-        const session = await options.sessions.loginAsDeveloper({
+        const session = await options.sessions.loginAsDeveloper('customer', {
           ipAddress: request.ip,
           userAgent: request.headers['user-agent'],
         });
@@ -112,7 +112,20 @@ export const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (
       return reply.status(404).send({ error: 'not_found' });
     }
 
-    const session = await options.sessions.loginAsDeveloper({
+    const body = z
+      .object({
+        email: z.string().optional(),
+        role: z.enum(['customer', 'admin']).optional(),
+      })
+      .safeParse(request.body);
+    const data = body.success ? body.data : {};
+    const role =
+      data.role ??
+      (data.email && options.sessions.isAdminEmail(data.email)
+        ? 'admin'
+        : 'customer');
+
+    const session = await options.sessions.loginAsDeveloper(role, {
       ipAddress: request.ip,
       userAgent: request.headers['user-agent'],
     });
