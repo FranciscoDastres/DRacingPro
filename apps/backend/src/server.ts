@@ -21,6 +21,7 @@ const app = await buildApp({
     sessions,
   },
   auth: {
+    allowDevLogin: environment.NODE_ENV !== 'production',
     apiOrigin: environment.API_ORIGIN,
     appOrigin: environment.APP_ORIGIN,
     ...(google && { google }),
