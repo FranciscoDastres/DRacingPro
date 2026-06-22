@@ -38,7 +38,7 @@ interface BookingModalProps {
  * motorcycle picker: the customer's NAVI is used, creating one if needed.
  */
 export function BookingModal({ onClose, open }: BookingModalProps) {
-  const { devLogin, isLoading: authLoading, user } = useAuth();
+  const { isLoading: authLoading, signIn, user } = useAuth();
   const queryClient = useQueryClient();
   const [serviceIds, setServiceIds] = useState<string[]>([]);
   const [date, setDate] = useState(getNextBookableDate());
@@ -47,9 +47,9 @@ export function BookingModal({ onClose, open }: BookingModalProps) {
   // Sign in transparently in local development when there is no session yet.
   useEffect(() => {
     if (open && !user && !authLoading) {
-      void devLogin().catch(() => undefined);
+      void signIn({ role: 'customer' }).catch(() => undefined);
     }
-  }, [open, user, authLoading, devLogin]);
+  }, [open, user, authLoading, signIn]);
 
   const services = useQuery({
     enabled: open,
