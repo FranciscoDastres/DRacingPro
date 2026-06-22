@@ -20,11 +20,11 @@ pnpm dev          # construye paquetes, libera puertos y arranca front + API
 
 Al terminar:
 
-| Servicio   | URL                              |
-| ---------- | -------------------------------- |
-| Frontend   | <http://localhost:5180>          |
-| API        | <http://localhost:3001/api>      |
-| PostgreSQL | `localhost:55432` (vía Docker)   |
+| Servicio   | URL                            |
+| ---------- | ------------------------------ |
+| Frontend   | <http://localhost:5180>        |
+| API        | <http://localhost:3001/api>    |
+| PostgreSQL | `localhost:55432` (vía Docker) |
 
 `pnpm dev` ejecuta `dev:free-ports` (`fuser -k 5180/tcp 3001/tcp`) antes de
 arrancar. Esto evita el error `EADDRINUSE: address already in use` cuando quedó
@@ -87,11 +87,11 @@ La lógica de fechas/horarios compartida vive en
 
 ## Solución de problemas
 
-| Síntoma                                              | Causa probable                                              | Solución                                                                 |
-| --------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `EADDRINUSE` / «Port 5180 is already in use»        | Otra instancia del dev sigue corriendo                     | `pnpm dev` ya libera los puertos; o manualmente `fuser -k 5180/tcp 3001/tcp` |
-| `password authentication failed for user "dracing"` | `DATABASE_URL` apunta a un PostgreSQL incorrecto           | Verificar que la base de Docker esté en `55432` (`docker ps`)            |
-| `Cannot GET /v1/...` (formato Express)              | El puerto lo ocupa otra app (no este backend Fastify)      | Liberar el puerto y reiniciar `pnpm dev`                                  |
+| Síntoma                                             | Causa probable                                        | Solución                                                                     |
+| --------------------------------------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `EADDRINUSE` / «Port 5180 is already in use»        | Otra instancia del dev sigue corriendo                | `pnpm dev` ya libera los puertos; o manualmente `fuser -k 5180/tcp 3001/tcp` |
+| `password authentication failed for user "dracing"` | `DATABASE_URL` apunta a un PostgreSQL incorrecto      | Verificar que la base de Docker esté en `55432` (`docker ps`)                |
+| `Cannot GET /v1/...` (formato Express)              | El puerto lo ocupa otra app (no este backend Fastify) | Liberar el puerto y reiniciar `pnpm dev`                                     |
 
 ## Roles y administrador principal
 

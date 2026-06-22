@@ -113,8 +113,8 @@ export function LoginModal({ onClose, open }: LoginModalProps) {
 
         {import.meta.env.DEV && (
           <p className="text-muted mt-5 rounded-lg border border-white/10 bg-white/[0.03] p-3 text-xs">
-            <span className="text-foreground font-semibold">Desarrollo:</span> un
-            correo configurado en <code>ADMIN_EMAILS</code> abre la vista de
+            <span className="text-foreground font-semibold">Desarrollo:</span>{' '}
+            un correo configurado en <code>ADMIN_EMAILS</code> abre la vista de
             Administrador; cualquier otro correo, la vista de Cliente. La
             contraseña aún no se valida.
           </p>

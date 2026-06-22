@@ -173,7 +173,7 @@ export function BookingModal({ onClose, open }: BookingModalProps) {
         </p>
 
         {createAppointment.isSuccess ? (
-          <div className="mt-8 rounded-2xl border border-success/30 bg-success/10 p-6 text-center">
+          <div className="border-success/30 bg-success/10 mt-8 rounded-2xl border p-6 text-center">
             <p className="text-success text-lg font-bold">¡Cita reservada!</p>
             <p className="text-muted mt-2 text-sm">
               Te esperamos para tu Honda NAVI. Puedes seguir el avance desde tu
@@ -396,4 +396,3 @@ function SlotGroup({
     </div>
   );
 }
-
