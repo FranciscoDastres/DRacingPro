@@ -24,6 +24,15 @@ const environmentSchema = z.object({
     .string()
     .min(32)
     .default('development-session-secret-change-me-now'),
+  ADMIN_EMAILS: z
+    .string()
+    .default('')
+    .transform((value) =>
+      value
+        .split(',')
+        .map((email) => email.trim().toLowerCase())
+        .filter(Boolean),
+    ),
   GOOGLE_CLIENT_ID: optionalString,
   GOOGLE_CLIENT_SECRET: optionalString,
   GOOGLE_REDIRECT_URI: z.preprocess(
