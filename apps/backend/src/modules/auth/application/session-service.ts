@@ -5,6 +5,7 @@ import type {
   AuthUser,
   GoogleProfile,
   SessionMetadata,
+  UserRole,
 } from '../domain/auth.js';
 
 const DEFAULT_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -19,6 +20,7 @@ export class SessionService {
   constructor(
     private readonly repository: AuthRepository,
     private readonly sessionTtlMs = DEFAULT_SESSION_TTL_MS,
+    private readonly adminEmails: readonly string[] = [],
   ) {}
 
   async authenticate(token: string | undefined): Promise<AuthUser | null> {
@@ -30,7 +32,14 @@ export class SessionService {
     profile: GoogleProfile,
     metadata: SessionMetadata,
   ): Promise<CreatedSession> {
-    const user = await this.repository.upsertGoogleUser(profile);
+    const upserted = await this.repository.upsertGoogleUser(profile);
+    // The emails configured as administrators are promoted on sign-in, so the
+    // principal admin gets workshop privileges without manual DB changes.
+    const user =
+      this.adminEmails.includes(profile.email.toLowerCase()) &&
+      upserted.role !== 'admin'
+        ? await this.repository.setUserRole(upserted.id, 'admin')
+        : upserted;
     const token = randomBytes(32).toString('base64url');
     const expiresAt = new Date(Date.now() + this.sessionTtlMs);
 
@@ -44,16 +53,26 @@ export class SessionService {
     return { expiresAt, token, user };
   }
 
-  async loginAsDeveloper(metadata: SessionMetadata): Promise<CreatedSession> {
-    return this.loginWithGoogle(
-      {
-        avatarUrl: null,
-        displayName: 'Usuario de desarrollo',
-        email: 'dev@dracing.local',
-        subject: 'dev-local',
-      },
+  isAdminEmail(email: string): boolean {
+    return this.adminEmails.includes(email.trim().toLowerCase());
+  }
+
+  async loginAsDeveloper(
+    role: UserRole,
+    metadata: SessionMetadata,
+  ): Promise<CreatedSession> {
+    const user = await this.repository.upsertDeveloperUser(role);
+    const token = randomBytes(32).toString('base64url');
+    const expiresAt = new Date(Date.now() + this.sessionTtlMs);
+
+    await this.repository.createSession(
+      user.id,
+      hashSessionToken(token),
+      expiresAt,
       metadata,
     );
+
+    return { expiresAt, token, user };
   }
 
   async logout(token: string | undefined): Promise<void> {
