@@ -31,5 +31,7 @@ export interface AuthRepository {
     tokenHash: Uint8Array<ArrayBuffer>,
   ): Promise<AuthUser | null>;
   revokeSession(tokenHash: Uint8Array<ArrayBuffer>): Promise<void>;
+  setUserRole(userId: string, role: UserRole): Promise<AuthUser>;
   upsertGoogleUser(profile: GoogleProfile): Promise<AuthUser>;
+  upsertDeveloperUser(role: UserRole): Promise<AuthUser>;
 }
