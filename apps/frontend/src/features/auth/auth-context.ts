@@ -1,10 +1,12 @@
 import type { CurrentUser } from '@dracing/contracts';
 import { createContext, useContext } from 'react';
 
+export type ViewRole = 'admin' | 'customer';
+
 export interface AuthContextValue {
-  devLogin: () => Promise<void>;
   isLoading: boolean;
   logout: () => Promise<void>;
+  signIn: (params?: { email?: string; role?: ViewRole }) => Promise<CurrentUser>;
   user: CurrentUser | null;
 }
 
