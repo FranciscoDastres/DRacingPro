@@ -1,5 +1,7 @@
 import type { HealthResponse } from '@dracing/contracts';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type MouseEvent, type ReactNode } from 'react';
+
+import { BookingModal } from '../features/appointments/BookingModal';
 
 type ApiState = 'checking' | 'online' | 'offline';
 type IconName =
@@ -30,12 +32,6 @@ const menuItems: Array<{
     href: '#servicios',
     icon: 'tool',
     label: 'Servicios',
-  },
-  {
-    description: 'Reserva fecha y hora en pocos pasos',
-    href: BOOKING_URL,
-    icon: 'calendar',
-    label: 'Agendar cita',
   },
   {
     description: 'Sigue el trabajo de tu moto',
@@ -78,12 +74,6 @@ const serviceCards: Array<{
     number: '03',
     title: 'Servicio express',
   },
-];
-
-const processSteps = [
-  ['Elige', 'Selecciona tu moto y el servicio que necesitas.'],
-  ['Agenda', 'Escoge una fecha y hora disponibles en tiempo real.'],
-  ['Sigue', 'Recibe actualizaciones claras durante todo el trabajo.'],
 ];
 
 function Icon({ name }: { name: IconName }) {
@@ -155,6 +145,7 @@ function Icon({ name }: { name: IconName }) {
 export function LandingPage() {
   const [apiState, setApiState] = useState<ApiState>('checking');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [bookingOpen, setBookingOpen] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -198,8 +189,20 @@ export function LandingPage() {
         ? 'API sin conexión'
         : 'Verificando sistema';
 
+  const handleBookingIntercept = (event: MouseEvent<HTMLDivElement>) => {
+    const anchor = (event.target as HTMLElement).closest('a');
+    if (anchor?.getAttribute('href') === BOOKING_URL) {
+      event.preventDefault();
+      setBookingOpen(true);
+    }
+  };
+
   return (
-    <div className="bg-background text-foreground min-h-screen overflow-x-clip">
+    <div
+      className="bg-background text-foreground min-h-screen overflow-x-clip"
+      onClick={handleBookingIntercept}
+    >
+      <BookingModal onClose={() => setBookingOpen(false)} open={bookingOpen} />
       <header className="sticky top-0 z-50 border-b border-white/10 bg-[#090909]/95 backdrop-blur-xl">
         <div className="bg-primary text-center text-[10px] font-semibold tracking-[0.16em] text-white uppercase sm:text-xs">
           <div className="mx-auto flex max-w-7xl items-center justify-center gap-2 px-4 py-2">
@@ -229,11 +232,11 @@ export function LandingPage() {
             <a className="landing-nav-link" href="#servicios">
               Servicios
             </a>
-            <a className="landing-nav-link" href="#proceso">
-              Cómo funciona
+            <a className="landing-nav-link" href="#clientes">
+              Clientes
             </a>
-            <a className="landing-nav-link" href="#confianza">
-              Especialistas
+            <a className="landing-nav-link" href="#como-llegar">
+              Cómo llegar
             </a>
           </nav>
 
@@ -356,9 +359,6 @@ export function LandingPage() {
                   Agendar una cita
                   <span aria-hidden="true">→</span>
                 </a>
-                <a className="landing-secondary-button" href="#proceso">
-                  Ver cómo funciona
-                </a>
               </div>
 
               <div className="mt-10 flex flex-wrap gap-x-7 gap-y-3 text-xs font-medium text-[#d0d0d0]">
@@ -379,43 +379,15 @@ export function LandingPage() {
           </div>
         </section>
 
-        <nav
-          aria-label="Categorías de servicio"
-          className="landing-category-nav sticky top-[108px] z-30"
-        >
-          <div className="mx-auto flex max-w-7xl items-center gap-7 overflow-x-auto px-5 sm:justify-center sm:gap-12 sm:px-6">
-            {[
-              ['Servicios', '#servicios'],
-              ['Proceso', '#proceso'],
-              ['Seguimiento', '#proceso'],
-              ['Historial', '#confianza'],
-              ['Agenda', BOOKING_URL],
-            ].map(([label, href], index) => (
-              <a
-                className={index === 0 ? 'is-active' : ''}
-                href={href}
-                key={label}
-              >
-                {label}
-              </a>
-            ))}
-          </div>
-        </nav>
-
         <section className="bg-[#f2f2f0] text-[#151515]" id="servicios">
           <div className="mx-auto max-w-7xl px-5 py-20 sm:px-6 sm:py-28 lg:px-10">
-            <div className="grid gap-8 lg:grid-cols-[1fr_.8fr] lg:items-end">
-              <div>
-                <p className="text-primary text-xs font-semibold tracking-[0.2em] uppercase">
-                  Cuidado especializado
-                </p>
-                <h2 className="mt-4 max-w-3xl text-3xl leading-tight sm:text-5xl">
-                  Todo lo que tu Navi necesita, sin vueltas.
-                </h2>
-              </div>
-              <p className="max-w-xl text-base leading-7 text-[#626262] lg:justify-self-end">
-                Un servicio profesional también debe ser fácil de entender. Te
-                mostramos qué haremos, cuánto tarda y cómo avanza tu moto.
+            <div className="max-w-2xl">
+              <h2 className="text-4xl leading-[1.05] font-semibold tracking-tight sm:text-6xl">
+                Servicios
+              </h2>
+              <p className="mt-5 text-lg leading-7 text-[#5a5a5a]">
+                Cada uno con precio y duración a la vista. Eliges, agendas y
+                listo.
               </p>
             </div>
 
@@ -439,132 +411,115 @@ export function LandingPage() {
                   <p className="mt-4 text-sm leading-6 text-[#686868]">
                     {service.description}
                   </p>
-                  <a
-                    className="mt-8 inline-flex items-center gap-2 text-xs font-semibold tracking-[0.08em] uppercase"
-                    href={BOOKING_URL}
-                  >
-                    Agendar servicio{' '}
-                    <span className="text-primary text-base">→</span>
-                  </a>
                 </article>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="relative overflow-hidden bg-[#0a0a0a]" id="proceso">
-          <div className="absolute top-0 right-0 h-full w-1/2 bg-[radial-gradient(circle_at_80%_30%,rgba(230,0,35,.2),transparent_50%)]" />
-          <div className="relative mx-auto max-w-7xl px-5 py-20 sm:px-6 sm:py-28 lg:px-10">
+        <section className="bg-[#0b0b0b]" id="clientes">
+          <div className="mx-auto max-w-7xl px-5 py-20 sm:px-6 sm:py-28 lg:px-10">
             <div className="max-w-2xl">
-              <p className="text-primary text-xs font-semibold tracking-[0.2em] uppercase">
-                Simple desde el inicio
-              </p>
-              <h2 className="mt-4 text-3xl leading-tight text-[#f4f4f4] sm:text-5xl">
-                Agenda en minutos. Sigue todo en línea.
+              <h2 className="text-4xl leading-[1.05] font-semibold tracking-tight text-white sm:text-6xl">
+                Nuestros clientes
               </h2>
-              <p className="mt-6 max-w-xl text-[#a8a8a8]">
-                Diseñamos el proceso para que tengas control y claridad sin
-                depender de llamadas.
+              <p className="mt-5 text-lg leading-7 text-[#a4a4a4]">
+                Lo que dicen quienes ya confían el cuidado de su NAVI con
+                nosotros.
               </p>
             </div>
 
-            <div className="mt-14 grid gap-10 border-t border-white/15 pt-10 md:grid-cols-3">
-              {processSteps.map(([title, description], index) => (
-                <article className="relative" key={title}>
-                  <span className="text-primary font-display text-sm font-bold">
-                    0{index + 1}
-                  </span>
-                  <h3 className="mt-5 text-xl text-[#f4f4f4]">{title}</h3>
-                  <p className="mt-3 max-w-xs text-sm leading-6 text-[#999]">
-                    {description}
-                  </p>
-                </article>
+            <div className="mt-14 grid gap-5 md:grid-cols-3">
+              {[
+                {
+                  context: 'NAVI 2023',
+                  name: 'Camila Rojas',
+                  quote:
+                    'Reservé en un minuto y me fueron avisando cada avance. Mi moto quedó impecable.',
+                },
+                {
+                  context: 'NAVI 2022',
+                  name: 'Diego Fuentes',
+                  quote:
+                    'Precios claros desde el inicio, sin sorpresas. La atención fue rápida y honesta.',
+                },
+                {
+                  context: 'NAVI 2024',
+                  name: 'Valentina Soto',
+                  quote:
+                    'Pude agendar online y revisar el historial de mi moto cuando quise. Muy recomendados.',
+                },
+              ].map((testimonial) => (
+                <figure
+                  className="flex h-full flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-6"
+                  key={testimonial.name}
+                >
+                  <div
+                    aria-hidden="true"
+                    className="text-primary flex gap-0.5 text-sm"
+                  >
+                    {Array.from({ length: 5 }).map((_, index) => (
+                      <span key={index}>★</span>
+                    ))}
+                  </div>
+                  <blockquote className="mt-4 flex-1 leading-7 text-[#d6d6d6]">
+                    “{testimonial.quote}”
+                  </blockquote>
+                  <figcaption className="mt-5 border-t border-white/10 pt-4">
+                    <p className="font-semibold text-white">
+                      {testimonial.name}
+                    </p>
+                    <p className="text-muted text-xs">{testimonial.context}</p>
+                  </figcaption>
+                </figure>
               ))}
             </div>
-
-            <a className="landing-primary-button mt-12" href={BOOKING_URL}>
-              Comenzar ahora <span aria-hidden="true">→</span>
-            </a>
           </div>
         </section>
 
-        <section className="bg-[#f2f2f0] text-[#151515]" id="confianza">
-          <div className="mx-auto grid max-w-7xl gap-12 px-5 py-20 sm:px-6 sm:py-28 lg:grid-cols-[1.05fr_.95fr] lg:items-center lg:px-10">
-            <div className="landing-detail-image relative min-h-[420px] overflow-hidden bg-[#171717] sm:min-h-[560px]">
-              <div className="absolute inset-0 bg-[linear-gradient(0deg,rgba(0,0,0,.65),transparent_55%)]" />
-              <div className="absolute right-0 bottom-0 left-0 p-7 text-white sm:p-10">
-                <p className="text-primary text-xs font-semibold tracking-[0.18em] uppercase">
-                  Tu moto, siempre visible
-                </p>
-                <p className="font-display mt-3 max-w-md text-2xl font-bold tracking-[0.03em] uppercase sm:text-3xl">
-                  Información clara en cada etapa.
-                </p>
+        <section className="bg-[#0a0a0a]" id="como-llegar">
+          <div className="mx-auto max-w-7xl px-5 py-20 sm:px-6 sm:py-24 lg:px-10">
+            <p className="text-primary text-xs font-semibold tracking-[0.2em] uppercase">
+              Cómo llegar
+            </p>
+            <h2 className="mt-4 max-w-3xl text-3xl leading-tight sm:text-5xl">
+              Visítanos en el taller
+            </h2>
+
+            <div className="mt-12 grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-stretch">
+              <div className="flex flex-col gap-6">
+                <div>
+                  <p className="text-muted text-xs font-semibold tracking-[0.14em] uppercase">
+                    Dirección
+                  </p>
+                  <p className="mt-3 text-2xl font-semibold text-white">
+                    Rosas 2871
+                  </p>
+                  <p className="mt-1 text-[#c9c9c9]">
+                    Comuna de Santiago, Región Metropolitana
+                  </p>
+                </div>
+                <a
+                  className="landing-secondary-button self-start"
+                  href="https://www.google.com/maps/search/?api=1&query=Rosas+2871,+Santiago,+Chile"
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  <Icon name="calendar" />
+                  Abrir en Google Maps
+                </a>
+              </div>
+
+              <div className="min-h-[320px] overflow-hidden rounded-3xl border border-white/10">
+                <iframe
+                  className="h-full min-h-[320px] w-full"
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  src="https://www.google.com/maps?q=Rosas%202871,%20Santiago,%20Chile&output=embed"
+                  title="Mapa - Rosas 2871, Santiago"
+                />
               </div>
             </div>
-
-            <div className="lg:pl-8">
-              <p className="text-primary text-xs font-semibold tracking-[0.2em] uppercase">
-                Confianza digital
-              </p>
-              <h2 className="mt-4 text-3xl leading-tight sm:text-5xl">
-                Más control. Menos incertidumbre.
-              </h2>
-              <p className="mt-6 text-base leading-7 text-[#626262]">
-                Desde la reserva hasta la entrega, la información relevante
-                queda centralizada y disponible desde tu teléfono.
-              </p>
-
-              <div className="mt-8 space-y-5">
-                {[
-                  [
-                    'Estado actualizado',
-                    'Consulta en qué etapa se encuentra el trabajo.',
-                  ],
-                  [
-                    'Historial completo',
-                    'Mantenciones y kilometraje ordenados por fecha.',
-                  ],
-                  [
-                    'Decisiones informadas',
-                    'Entiende el servicio antes de aprobarlo.',
-                  ],
-                ].map(([title, description]) => (
-                  <div
-                    className="flex gap-4 border-t border-black/10 pt-5"
-                    key={title}
-                  >
-                    <span className="text-primary mt-0.5">
-                      <Icon name="shield" />
-                    </span>
-                    <div>
-                      <h3 className="text-sm">{title}</h3>
-                      <p className="mt-1 text-sm text-[#747474]">
-                        {description}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="bg-primary text-white">
-          <div className="mx-auto flex max-w-7xl flex-col gap-8 px-5 py-14 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-10">
-            <div>
-              <p className="text-xs font-semibold tracking-[0.18em] text-white/70 uppercase">
-                Tu próxima mantención
-              </p>
-              <h2 className="mt-3 text-3xl leading-tight sm:text-4xl">
-                Tu Navi lista. Tu agenda también.
-              </h2>
-            </div>
-            <a
-              className="inline-flex min-h-12 items-center justify-center gap-3 rounded-full bg-white px-6 py-3 font-semibold text-[#151515] transition hover:bg-[#151515] hover:text-white"
-              href={BOOKING_URL}
-            >
-              Agendar una cita <span aria-hidden="true">→</span>
-            </a>
           </div>
         </section>
       </main>
