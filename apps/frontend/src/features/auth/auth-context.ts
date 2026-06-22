@@ -6,7 +6,10 @@ export type ViewRole = 'admin' | 'customer';
 export interface AuthContextValue {
   isLoading: boolean;
   logout: () => Promise<void>;
-  signIn: (params?: { email?: string; role?: ViewRole }) => Promise<CurrentUser>;
+  signIn: (params?: {
+    email?: string;
+    role?: ViewRole;
+  }) => Promise<CurrentUser>;
   user: CurrentUser | null;
 }
 

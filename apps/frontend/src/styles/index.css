@@ -69,8 +69,7 @@ button {
 
 button,
 .landing-primary-button,
-.landing-secondary-button,
-.landing-floating-cta {
+.landing-secondary-button {
   font-family: var(--font-display);
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -163,21 +162,13 @@ button,
   background: #111;
 }
 
-.landing-hero-image,
-.landing-detail-image {
+.landing-hero-image {
   background-color: #171717;
   background-image: url('/images/navi-service-hero.webp');
   background-repeat: no-repeat;
   background-size: cover;
-}
-
-.landing-hero-image {
   background-position: 62% center;
   transform: scale(1.015);
-}
-
-.landing-detail-image {
-  background-position: 68% center;
 }
 
 .landing-hero-overlay {
@@ -191,67 +182,6 @@ button,
     ),
     linear-gradient(0deg, rgb(0 0 0 / 55%) 0%, transparent 42%),
     radial-gradient(circle at 70% 50%, transparent 20%, rgb(0 0 0 / 26%) 100%);
-}
-
-.landing-category-nav {
-  border-top: 1px solid rgb(255 255 255 / 10%);
-  border-bottom: 1px solid rgb(255 255 255 / 10%);
-  background: #111;
-  box-shadow: 0 14px 35px rgb(0 0 0 / 20%);
-}
-
-.landing-category-nav a {
-  position: relative;
-  flex: none;
-  padding: 1.35rem 0;
-  color: #a7a7a7;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  transition: color 180ms ease;
-}
-
-.landing-category-nav a:hover,
-.landing-category-nav a.is-active {
-  color: #fff;
-}
-
-.landing-category-nav a.is-active::after {
-  position: absolute;
-  right: 0;
-  bottom: -1px;
-  left: 0;
-  height: 3px;
-  content: '';
-  background: var(--color-primary);
-}
-
-.landing-floating-cta {
-  position: fixed;
-  z-index: 35;
-  right: 1rem;
-  bottom: 1rem;
-  display: inline-flex;
-  min-height: 3.1rem;
-  align-items: center;
-  gap: 0.65rem;
-  border-radius: 9999px;
-  border: 1px solid rgb(255 255 255 / 20%);
-  background: var(--color-primary);
-  padding: 0.8rem 1rem;
-  color: white;
-  font-size: 0.68rem;
-  font-weight: 700;
-  box-shadow: 0 16px 40px rgb(0 0 0 / 34%);
-  transition:
-    background-color 180ms ease,
-    transform 180ms ease;
-}
-
-.landing-floating-cta:hover {
-  background: #ff2343;
-  transform: translateY(-2px);
 }
 
 @media (max-width: 639px) {
@@ -268,16 +198,6 @@ button,
         rgb(0 0 0 / 26%) 100%
       ),
       linear-gradient(90deg, rgb(0 0 0 / 58%), transparent);
-  }
-
-  .landing-floating-cta span {
-    display: none;
-  }
-
-  .landing-floating-cta {
-    width: 3.25rem;
-    padding: 0;
-    justify-content: center;
   }
 }
 
