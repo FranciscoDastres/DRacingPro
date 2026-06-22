@@ -3,6 +3,8 @@ import { useEffect, useState, type MouseEvent, type ReactNode } from 'react';
 
 import { BookingModal } from '../features/appointments/BookingModal';
 import { LoginModal } from '../features/auth/LoginModal';
+import { TopBar } from '../features/landing/TopBar';
+import { WhatsAppButton } from '../features/landing/WhatsAppButton';
 
 type ApiState = 'checking' | 'online' | 'offline';
 type IconName =
@@ -212,12 +214,7 @@ export function LandingPage() {
       <BookingModal onClose={() => setBookingOpen(false)} open={bookingOpen} />
       <LoginModal onClose={() => setLoginOpen(false)} open={loginOpen} />
       <header className="sticky top-0 z-50 border-b border-white/10 bg-[#090909]/95 backdrop-blur-xl">
-        <div className="bg-primary text-center text-[10px] font-semibold tracking-[0.16em] text-white uppercase sm:text-xs">
-          <div className="mx-auto flex max-w-7xl items-center justify-center gap-2 px-4 py-2">
-            <Icon name="calendar" />
-            Agenda online disponible las 24 horas
-          </div>
-        </div>
+        <TopBar />
 
         <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-10">
           <a
@@ -532,14 +529,7 @@ export function LandingPage() {
         </section>
       </main>
 
-      <a
-        className="landing-floating-cta"
-        href={BOOKING_URL}
-        aria-label="Agendar una cita"
-      >
-        <Icon name="calendar" />
-        <span>Agendar cita</span>
-      </a>
+      <WhatsAppButton />
 
       <footer className="bg-[#090909] text-[#919191]">
         <div className="mx-auto flex max-w-7xl flex-col gap-5 px-5 py-8 text-xs sm:px-6 md:flex-row md:items-center md:justify-between lg:px-10">
