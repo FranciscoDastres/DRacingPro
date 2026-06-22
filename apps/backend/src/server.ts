@@ -12,15 +12,22 @@ import { WorkshopAdminService } from './modules/workshop/application/workshop-ad
 
 const environment = parseEnvironment();
 const database = createDatabaseClient(environment.DATABASE_URL);
-const sessions = new SessionService(new PrismaAuthRepository(database));
+const sessions = new SessionService(
+  new PrismaAuthRepository(database),
+  undefined,
+  environment.ADMIN_EMAILS,
+);
 const google = createGoogleClient();
+const appointmentService = new AppointmentService(database);
+const motorcycleRepository = new PrismaMotorcycleRepository(database);
 const app = await buildApp({
   appointments: {
     appOrigin: environment.APP_ORIGIN,
-    appointments: new AppointmentService(database),
+    appointments: appointmentService,
     sessions,
   },
   auth: {
+    allowDevLogin: environment.NODE_ENV !== 'production',
     apiOrigin: environment.API_ORIGIN,
     appOrigin: environment.APP_ORIGIN,
     ...(google && { google }),
@@ -34,7 +41,7 @@ const app = await buildApp({
   cookieSecret: environment.SESSION_SECRET,
   motorcycles: {
     appOrigin: environment.APP_ORIGIN,
-    repository: new PrismaMotorcycleRepository(database),
+    repository: motorcycleRepository,
     sessions,
   },
   services: {

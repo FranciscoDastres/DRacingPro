@@ -10,6 +10,12 @@ import { Link } from 'react-router-dom';
 
 import { apiClient } from '../../lib/api-client';
 import { AppointmentCalendar } from './AppointmentCalendar';
+import {
+  getNextBookableDate,
+  getToday,
+  getWorkshopMinutes,
+  parseLocalDate,
+} from './appointment-helpers';
 
 const dateFormatter = new Intl.DateTimeFormat('es-CL', {
   dateStyle: 'medium',
@@ -499,43 +505,6 @@ function TimeSlotGroup({
       </div>
     </div>
   );
-}
-
-function getToday(): string {
-  return formatLocalDate(new Date());
-}
-
-function getNextBookableDate(): string {
-  const nextDate = new Date();
-  nextDate.setDate(nextDate.getDate() + 1);
-  if (nextDate.getDay() === 0) nextDate.setDate(nextDate.getDate() + 1);
-  return formatLocalDate(nextDate);
-}
-
-function formatLocalDate(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function parseLocalDate(value: string): Date {
-  const [year, month, day] = value.split('-').map(Number);
-  return new Date(year!, month! - 1, day!, 12);
-}
-
-function getWorkshopMinutes(value: string): number {
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    hour: '2-digit',
-    hourCycle: 'h23',
-    minute: '2-digit',
-    timeZone: 'America/Santiago',
-  }).formatToParts(new Date(value));
-  const hour = Number(parts.find((part) => part.type === 'hour')?.value ?? 0);
-  const minute = Number(
-    parts.find((part) => part.type === 'minute')?.value ?? 0,
-  );
-  return hour * 60 + minute;
 }
 
 function isCustomerCancellable(appointment: Appointment): boolean {

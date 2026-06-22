@@ -5,11 +5,13 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
-    port: 5173,
+    host: '0.0.0.0',
+    port: 5180,
+    strictPort: true,
     proxy: {
-      '/api': 'http://localhost:3000',
-      '/health': 'http://localhost:3000',
-      '/v1': 'http://localhost:3000',
+      '/api': 'http://localhost:3001',
+      '/health': 'http://localhost:3001',
+      '/v1': 'http://localhost:3001',
     },
   },
 });

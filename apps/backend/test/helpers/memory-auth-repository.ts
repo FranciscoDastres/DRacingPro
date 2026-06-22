@@ -3,6 +3,7 @@ import type {
   AuthUser,
   GoogleProfile,
   SessionMetadata,
+  UserRole,
 } from '../../src/modules/auth/domain/auth.js';
 
 export const testUser: AuthUser = {
@@ -34,8 +35,20 @@ export class MemoryAuthRepository implements AuthRepository {
     this.revoked = true;
   }
 
+  async setUserRole(_userId: string, role: UserRole): Promise<AuthUser> {
+    if (!this.user) throw new Error('Test user is not configured');
+    this.user = { ...this.user, role };
+    return this.user;
+  }
+
   async upsertGoogleUser(_profile: GoogleProfile): Promise<AuthUser> {
     if (!this.user) throw new Error('Test user is not configured');
+    return this.user;
+  }
+
+  async upsertDeveloperUser(role: UserRole): Promise<AuthUser> {
+    if (!this.user) throw new Error('Test user is not configured');
+    this.user = { ...this.user, role };
     return this.user;
   }
 }

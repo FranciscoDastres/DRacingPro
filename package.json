@@ -8,7 +8,8 @@
     "node": ">=20.19.0"
   },
   "scripts": {
-    "dev": "pnpm build:packages && pnpm --parallel --filter @dracing/frontend --filter @dracing/backend dev",
+    "dev": "pnpm build:packages && pnpm dev:free-ports && pnpm --parallel --filter @dracing/frontend --filter @dracing/backend dev",
+    "dev:free-ports": "fuser -k 5180/tcp 3001/tcp 2>/dev/null || true",
     "build:packages": "pnpm --filter @dracing/contracts build && pnpm --filter @dracing/database build",
     "build": "pnpm -r --if-present build",
     "lint": "eslint . --max-warnings=0",

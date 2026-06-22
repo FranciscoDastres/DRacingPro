@@ -20,6 +20,7 @@ especializado en Honda NAVI.
 - [Seguridad y autenticación](docs/security.md)
 - [UI/UX](docs/ui-ux.md)
 - [Infraestructura y Docker](docs/infrastructure.md)
+- [Desarrollo local](docs/local-development.md)
 - [Roadmap](docs/roadmap.md)
 
 La primera migración propuesta está en
@@ -37,13 +38,18 @@ pnpm db:migrate
 pnpm dev
 ```
 
-- Frontend: <http://localhost:5173>
-- API: <http://localhost:3000/api>
-- Liveness: <http://localhost:3000/health/live>
-- Readiness: <http://localhost:3000/health/ready>
+- Frontend: <http://localhost:5180>
+- API: <http://localhost:3001/api>
+- Liveness: <http://localhost:3001/health/live>
+- Readiness: <http://localhost:3001/health/ready>
 
-Si alguno de los puertos está ocupado, se puede cambiar en `.env` mediante
-`APP_PORT`, `API_PORT` y `POSTGRES_PORT`.
+`pnpm dev` libera automáticamente los puertos `5180`/`3001` antes de arrancar, por
+lo que reiniciar el entorno no produce errores `EADDRINUSE`.
+
+Sin credenciales de Google configuradas, el entorno de desarrollo habilita un
+**acceso de desarrollo**: el botón «Agendar una cita» inicia sesión de forma
+automática y registra una Honda NAVI de prueba. El detalle está en
+[Desarrollo local](docs/local-development.md).
 
 Para levantar el stack productivo completo mediante imágenes locales:
 
