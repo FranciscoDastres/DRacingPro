@@ -44,6 +44,18 @@ export class SessionService {
     return { expiresAt, token, user };
   }
 
+  async loginAsDeveloper(metadata: SessionMetadata): Promise<CreatedSession> {
+    return this.loginWithGoogle(
+      {
+        avatarUrl: null,
+        displayName: 'Usuario de desarrollo',
+        email: 'dev@dracing.local',
+        subject: 'dev-local',
+      },
+      metadata,
+    );
+  }
+
   async logout(token: string | undefined): Promise<void> {
     if (!token) return;
     await this.repository.revokeSession(hashSessionToken(token));
