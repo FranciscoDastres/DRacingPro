@@ -24,14 +24,21 @@ export function AuthProvider({ children }: PropsWithChildren) {
     mutationFn: () => apiClient.post<void>('/v1/auth/logout'),
     onSuccess: () => queryClient.setQueryData(['current-user'], null),
   });
+  const devLoginMutation = useMutation({
+    mutationFn: () => apiClient.post<CurrentUser>('/v1/auth/dev-login'),
+    onSuccess: (user) => queryClient.setQueryData(['current-user'], user),
+  });
 
   const value = useMemo<AuthContextValue>(
     () => ({
+      devLogin: async () => {
+        await devLoginMutation.mutateAsync();
+      },
       isLoading: userQuery.isLoading,
       logout: async () => logoutMutation.mutateAsync(),
       user: userQuery.data ?? null,
     }),
-    [logoutMutation, userQuery.data, userQuery.isLoading],
+    [devLoginMutation, logoutMutation, userQuery.data, userQuery.isLoading],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
