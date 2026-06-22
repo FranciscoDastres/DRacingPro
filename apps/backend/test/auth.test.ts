@@ -31,6 +31,55 @@ describe('authentication routes', () => {
     await app.close();
   });
 
+  it('creates a developer session when dev login is allowed', async () => {
+    const repository = new MemoryAuthRepository();
+    const app = await buildApp({
+      appOrigin: 'http://localhost:5173',
+      auth: {
+        allowDevLogin: true,
+        apiOrigin: 'http://localhost:3000',
+        appOrigin: 'http://localhost:5173',
+        secureCookies: false,
+        sessions: new SessionService(repository),
+      },
+      checkDatabase: async () => undefined,
+      logger: false,
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/auth/dev-login',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual(testUser);
+    expect(response.headers['set-cookie']).toBeDefined();
+    await app.close();
+  });
+
+  it('hides dev login when it is not allowed', async () => {
+    const repository = new MemoryAuthRepository();
+    const app = await buildApp({
+      appOrigin: 'http://localhost:5173',
+      auth: {
+        apiOrigin: 'http://localhost:3000',
+        appOrigin: 'http://localhost:5173',
+        secureCookies: false,
+        sessions: new SessionService(repository),
+      },
+      checkDatabase: async () => undefined,
+      logger: false,
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/auth/dev-login',
+    });
+
+    expect(response.statusCode).toBe(404);
+    await app.close();
+  });
+
   it('protects logout with an origin check and revokes the session', async () => {
     const repository = new MemoryAuthRepository();
     const app = await buildApp({
