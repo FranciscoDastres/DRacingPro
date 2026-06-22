@@ -3,8 +3,11 @@
  * the top bar and the WhatsApp button.
  */
 export const CONTACT = {
-  /** Human-readable attention hours. */
-  hours: 'Lun a Sáb · 09:30–18:00',
+  /** Human-readable attention hours, shown on two lines. */
+  hours: {
+    saturday: 'Sáb · 09:30–14:00',
+    weekday: 'Lun a Vie · 09:30–18:30',
+  },
   /** Phone shown under "Contáctanos". */
   phoneDisplay: '+56 9 7319 6187',
   /**
