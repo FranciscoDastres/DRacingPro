@@ -26,6 +26,11 @@ export interface SessionMetadata {
   userAgent?: string | undefined;
 }
 
+export interface LocalAdminCredentials {
+  passwordHash: string;
+  user: AuthUser;
+}
+
 export interface AuthRepository {
   createSession(
     userId: string,
@@ -36,9 +41,9 @@ export interface AuthRepository {
   findUserBySessionHash(
     tokenHash: Uint8Array<ArrayBuffer>,
   ): Promise<AuthUser | null>;
+  findLocalAdminByEmail(email: string): Promise<LocalAdminCredentials | null>;
   revokeSession(tokenHash: Uint8Array<ArrayBuffer>): Promise<void>;
-  setUserRole(userId: string, role: UserRole): Promise<AuthUser>;
   updateProfile(userId: string, update: ProfileUpdate): Promise<AuthUser>;
   upsertGoogleUser(profile: GoogleProfile): Promise<AuthUser>;
-  upsertDeveloperUser(role: UserRole): Promise<AuthUser>;
+  upsertDeveloperUser(): Promise<AuthUser>;
 }
