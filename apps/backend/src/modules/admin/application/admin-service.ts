@@ -12,14 +12,7 @@ const WORKSHOP_TIME_ZONE = 'America/Santiago';
 export class AdminUserError extends Error {}
 
 export class AdminService {
-  constructor(
-    private readonly database: DatabaseClient,
-    private readonly adminEmails: readonly string[] = [],
-  ) {}
-
-  private isPrimaryAdmin(email: string): boolean {
-    return this.adminEmails.includes(email.trim().toLowerCase());
-  }
+  constructor(private readonly database: DatabaseClient) {}
 
   async listUsers(): Promise<AdminUser[]> {
     const [users, completed] = await Promise.all([
@@ -57,7 +50,7 @@ export class AdminService {
       email: user.email,
       id: user.id,
       isActive: user.is_active,
-      isPrimaryAdmin: this.isPrimaryAdmin(user.email),
+      isPrimaryAdmin: user.role === 'admin',
       phone: user.phone,
       role: user.role,
       totalSpent: spentByUser.get(user.id) ?? 0,
@@ -74,9 +67,8 @@ export class AdminService {
     });
     if (!target) throw new AdminUserError('user_not_found');
 
-    // The principal admin (configured email) cannot be demoted or disabled, and
-    // an admin cannot lock themselves out of their own account.
-    if (this.isPrimaryAdmin(target.email)) {
+    // The only administrator cannot be disabled or changed from the client UI.
+    if (target.role === 'admin') {
       throw new AdminUserError('cannot_modify_primary_admin');
     }
     if (actorUserId === userId && input.isActive === false) {
@@ -86,7 +78,6 @@ export class AdminService {
     await this.database.users.update({
       data: {
         ...(input.isActive !== undefined && { is_active: input.isActive }),
-        ...(input.role !== undefined && { role: input.role }),
       },
       where: { id: userId },
     });
@@ -139,11 +130,15 @@ export class AdminService {
         appointmentTotal += amount;
         revenueByServiceMap.set(
           service.service_name_snapshot,
-          (revenueByServiceMap.get(service.service_name_snapshot) ?? 0) + amount,
+          (revenueByServiceMap.get(service.service_name_snapshot) ?? 0) +
+            amount,
         );
       }
       totalRevenue += appointmentTotal;
-      revenueByDayMap.set(day, (revenueByDayMap.get(day) ?? 0) + appointmentTotal);
+      revenueByDayMap.set(
+        day,
+        (revenueByDayMap.get(day) ?? 0) + appointmentTotal,
+      );
     }
 
     return {
