@@ -24,6 +24,13 @@ export const CurrentUserSchema = z.object({
 
 export type CurrentUser = z.infer<typeof CurrentUserSchema>;
 
+export const AdminLoginSchema = z.object({
+  email: z.email().trim().toLowerCase(),
+  password: z.string().min(1).max(128),
+});
+
+export type AdminLoginInput = z.infer<typeof AdminLoginSchema>;
+
 export const UpdateProfileSchema = z.object({
   displayName: z.string().trim().min(1).max(120),
   phone: z
@@ -340,10 +347,9 @@ export type AdminUser = z.infer<typeof AdminUserSchema>;
 export const UpdateUserSchema = z
   .object({
     isActive: z.boolean().optional(),
-    role: UserRoleSchema.optional(),
   })
   .refine(
-    (value) => value.isActive !== undefined || value.role !== undefined,
+    (value) => value.isActive !== undefined,
     'At least one field is required',
   );
 
