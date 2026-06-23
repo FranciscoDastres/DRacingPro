@@ -4,9 +4,9 @@ import type {
   AuthRepository,
   AuthUser,
   GoogleProfile,
+  LocalAdminCredentials,
   ProfileUpdate,
   SessionMetadata,
-  UserRole,
 } from '../domain/auth.js';
 
 export class PrismaAuthRepository implements AuthRepository {
@@ -53,12 +53,19 @@ export class PrismaAuthRepository implements AuthRepository {
     });
   }
 
-  async setUserRole(userId: string, role: UserRole): Promise<AuthUser> {
-    const user = await this.database.users.update({
-      data: { role },
-      where: { id: userId },
+  async findLocalAdminByEmail(
+    email: string,
+  ): Promise<LocalAdminCredentials | null> {
+    const user = await this.database.users.findFirst({
+      where: {
+        email,
+        is_active: true,
+        password_hash: { not: null },
+        role: 'admin',
+      },
     });
-    return mapUser(user);
+    if (!user?.password_hash) return null;
+    return { passwordHash: user.password_hash, user: mapUser(user) };
   }
 
   async updateProfile(
@@ -72,13 +79,16 @@ export class PrismaAuthRepository implements AuthRepository {
     return mapUser(user);
   }
 
-  async upsertDeveloperUser(role: UserRole): Promise<AuthUser> {
-    const email =
-      role === 'admin' ? 'admin@dracing.local' : 'cliente@dracing.local';
-    const displayName = role === 'admin' ? 'Administrador' : 'Cliente';
+  async upsertDeveloperUser(): Promise<AuthUser> {
+    const email = 'cliente@dracing.local';
+    const displayName = 'Cliente';
+    const existing = await this.database.users.findUnique({ where: { email } });
+    if (existing?.role === 'admin') {
+      throw new Error('developer_email_reserved_by_admin');
+    }
     const user = await this.database.users.upsert({
-      create: { display_name: displayName, email, role },
-      update: { role },
+      create: { display_name: displayName, email, role: 'customer' },
+      update: { display_name: displayName },
       where: { email },
     });
     return mapUser(user);
@@ -97,6 +107,9 @@ export class PrismaAuthRepository implements AuthRepository {
       });
 
       if (existingAccount) {
+        if (existingAccount.users.role === 'admin') {
+          throw new Error('admin_google_login_not_allowed');
+        }
         const user = await transaction.users.update({
           data: {
             avatar_url: profile.avatarUrl,
@@ -117,11 +130,19 @@ export class PrismaAuthRepository implements AuthRepository {
         return mapUser(user);
       }
 
+      const existingUser = await transaction.users.findUnique({
+        where: { email: profile.email },
+      });
+      if (existingUser?.role === 'admin') {
+        throw new Error('admin_google_login_not_allowed');
+      }
+
       const user = await transaction.users.upsert({
         create: {
           avatar_url: profile.avatarUrl,
           display_name: profile.displayName,
           email: profile.email,
+          role: 'customer',
         },
         update: {
           avatar_url: profile.avatarUrl,
