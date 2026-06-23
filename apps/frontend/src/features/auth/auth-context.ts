@@ -1,15 +1,15 @@
-import type { CurrentUser, UpdateProfileInput } from '@dracing/contracts';
+import type {
+  AdminLoginInput,
+  CurrentUser,
+  UpdateProfileInput,
+} from '@dracing/contracts';
 import { createContext, useContext } from 'react';
-
-export type ViewRole = 'admin' | 'customer';
 
 export interface AuthContextValue {
   isLoading: boolean;
   logout: () => Promise<void>;
-  signIn: (params?: {
-    email?: string;
-    role?: ViewRole;
-  }) => Promise<CurrentUser>;
+  signInAdmin: (input: AdminLoginInput) => Promise<CurrentUser>;
+  signInAsDeveloper: () => Promise<CurrentUser>;
   updateProfile: (input: UpdateProfileInput) => Promise<CurrentUser>;
   user: CurrentUser | null;
 }
