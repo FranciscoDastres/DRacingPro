@@ -5,7 +5,13 @@ export interface AuthUser {
   email: string;
   displayName: string;
   avatarUrl: string | null;
+  phone: string | null;
   role: UserRole;
+}
+
+export interface ProfileUpdate {
+  displayName: string;
+  phone: string | null;
 }
 
 export interface GoogleProfile {
@@ -32,6 +38,7 @@ export interface AuthRepository {
   ): Promise<AuthUser | null>;
   revokeSession(tokenHash: Uint8Array<ArrayBuffer>): Promise<void>;
   setUserRole(userId: string, role: UserRole): Promise<AuthUser>;
+  updateProfile(userId: string, update: ProfileUpdate): Promise<AuthUser>;
   upsertGoogleUser(profile: GoogleProfile): Promise<AuthUser>;
   upsertDeveloperUser(role: UserRole): Promise<AuthUser>;
 }

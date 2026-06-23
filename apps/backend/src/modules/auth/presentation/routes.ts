@@ -1,4 +1,4 @@
-import type { CurrentUser } from '@dracing/contracts';
+import { type CurrentUser, UpdateProfileSchema } from '@dracing/contracts';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 
@@ -147,6 +147,26 @@ export const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (
     if (!user) return reply.status(401).send({ error: 'unauthorized' });
 
     const response: CurrentUser = user;
+    return reply.send(response);
+  });
+
+  app.patch('/me', async (request, reply) => {
+    if (!hasTrustedOrigin(request, options.appOrigin)) {
+      return reply.status(403).send({ error: 'invalid_origin' });
+    }
+    const user = await requireUser(request, reply, options.sessions);
+    if (!user) return;
+
+    const input = UpdateProfileSchema.safeParse(request.body);
+    if (!input.success) {
+      return reply.status(400).send({ error: 'validation_error' });
+    }
+
+    const updated = await options.sessions.updateProfile(user.id, {
+      displayName: input.data.displayName,
+      phone: input.data.phone ?? null,
+    });
+    const response: CurrentUser = updated;
     return reply.send(response);
   });
 

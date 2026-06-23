@@ -483,8 +483,11 @@ const adminAppointmentInclude = {
 
 function mapAppointment(appointment: {
   appointment_services: Array<{
+    currency: string;
+    quantity: number;
     service_id: string;
     service_name_snapshot: string;
+    unit_price_cents: number;
   }>;
   ends_at: Date;
   id: string;
@@ -515,11 +518,17 @@ function mapAppointment(appointment: {
         `${appointment.motorcycles.make} ${appointment.motorcycles.model}`,
     },
     services: appointment.appointment_services.map((service) => ({
+      currency: service.currency,
       id: service.service_id,
       name: service.service_name_snapshot,
+      unitPrice: service.unit_price_cents,
     })),
     startsAt: appointment.starts_at.toISOString(),
     status: appointment.status,
+    total: appointment.appointment_services.reduce(
+      (sum, service) => sum + service.unit_price_cents * service.quantity,
+      0,
+    ),
   };
 }
 

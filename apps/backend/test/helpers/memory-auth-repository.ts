@@ -2,6 +2,7 @@ import type {
   AuthRepository,
   AuthUser,
   GoogleProfile,
+  ProfileUpdate,
   SessionMetadata,
   UserRole,
 } from '../../src/modules/auth/domain/auth.js';
@@ -11,6 +12,7 @@ export const testUser: AuthUser = {
   displayName: 'Cliente NAVI',
   email: 'cliente@example.com',
   id: '9d8ce4e1-1e2b-4a98-beb6-c96e8d5e63f2',
+  phone: null,
   role: 'customer',
 };
 
@@ -38,6 +40,19 @@ export class MemoryAuthRepository implements AuthRepository {
   async setUserRole(_userId: string, role: UserRole): Promise<AuthUser> {
     if (!this.user) throw new Error('Test user is not configured');
     this.user = { ...this.user, role };
+    return this.user;
+  }
+
+  async updateProfile(
+    _userId: string,
+    update: ProfileUpdate,
+  ): Promise<AuthUser> {
+    if (!this.user) throw new Error('Test user is not configured');
+    this.user = {
+      ...this.user,
+      displayName: update.displayName,
+      phone: update.phone,
+    };
     return this.user;
   }
 

@@ -4,6 +4,7 @@ import type {
   AuthRepository,
   AuthUser,
   GoogleProfile,
+  ProfileUpdate,
   SessionMetadata,
   UserRole,
 } from '../domain/auth.js';
@@ -55,6 +56,17 @@ export class PrismaAuthRepository implements AuthRepository {
   async setUserRole(userId: string, role: UserRole): Promise<AuthUser> {
     const user = await this.database.users.update({
       data: { role },
+      where: { id: userId },
+    });
+    return mapUser(user);
+  }
+
+  async updateProfile(
+    userId: string,
+    update: ProfileUpdate,
+  ): Promise<AuthUser> {
+    const user = await this.database.users.update({
+      data: { display_name: update.displayName, phone: update.phone },
       where: { id: userId },
     });
     return mapUser(user);
@@ -136,6 +148,7 @@ function mapUser(user: {
   display_name: string;
   email: string;
   id: string;
+  phone: string | null;
   role: 'admin' | 'customer';
 }): AuthUser {
   return {
@@ -143,6 +156,7 @@ function mapUser(user: {
     displayName: user.display_name,
     email: user.email,
     id: user.id,
+    phone: user.phone,
     role: user.role,
   };
 }

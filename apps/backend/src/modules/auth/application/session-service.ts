@@ -4,6 +4,7 @@ import type {
   AuthRepository,
   AuthUser,
   GoogleProfile,
+  ProfileUpdate,
   SessionMetadata,
   UserRole,
 } from '../domain/auth.js';
@@ -73,6 +74,13 @@ export class SessionService {
     );
 
     return { expiresAt, token, user };
+  }
+
+  async updateProfile(
+    userId: string,
+    update: ProfileUpdate,
+  ): Promise<AuthUser> {
+    return this.repository.updateProfile(userId, update);
   }
 
   async logout(token: string | undefined): Promise<void> {
