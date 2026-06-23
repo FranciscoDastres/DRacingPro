@@ -4,28 +4,28 @@ import { CONTACT } from '../../config/contact';
 import { BrandLogo } from './BrandLogo';
 
 /**
- * Slim utility bar at the very top of the landing, on a light background:
- * social links on the left, the (placeholder) logo centred, and contact phone
- * plus attention hours on the right.
+ * Full-width utility bar at the very top of the landing, on a light background:
+ * the (placeholder) logo on the far left and, on the far right, social links,
+ * the contact phone and the attention hours — using the full width.
  */
 export function TopBar() {
   return (
     <div className="border-b border-black/10 bg-white text-[#1a1a1a]">
-      <div className="mx-auto grid h-16 max-w-7xl grid-cols-[1fr_auto_1fr] items-center px-4 sm:px-6 lg:px-10">
-        <div className="flex items-center gap-2">
-          <SocialLink href={CONTACT.social.facebook} label="Facebook">
-            <FacebookIcon />
-          </SocialLink>
-          <SocialLink href={CONTACT.social.instagram} label="Instagram">
-            <InstagramIcon />
-          </SocialLink>
-        </div>
-
-        <a aria-label="Inicio" className="justify-self-center" href="#top">
+      <div className="flex h-16 items-center justify-between px-5 sm:px-8 lg:px-12">
+        <a aria-label="Inicio" href="#top">
           <BrandLogo />
         </a>
 
-        <div className="flex items-center justify-end gap-5 sm:gap-7">
+        <div className="flex items-center gap-5 sm:gap-8">
+          <div className="flex items-center gap-2">
+            <SocialLink href={CONTACT.social.facebook} label="Facebook">
+              <FacebookIcon />
+            </SocialLink>
+            <SocialLink href={CONTACT.social.instagram} label="Instagram">
+              <InstagramIcon />
+            </SocialLink>
+          </div>
+
           <a
             className="hidden text-right sm:block"
             href={`tel:${CONTACT.whatsappNumber}`}
@@ -38,7 +38,7 @@ export function TopBar() {
             </span>
           </a>
 
-          <div className="hidden border-l border-black/10 pl-5 text-right md:block">
+          <div className="hidden border-l border-black/10 pl-5 text-right sm:pl-8 md:block">
             <span className="block text-[11px] font-semibold tracking-[0.14em] text-[#6a6a6a] uppercase">
               Horario de atención
             </span>
