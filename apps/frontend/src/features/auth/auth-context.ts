@@ -1,4 +1,4 @@
-import type { CurrentUser } from '@dracing/contracts';
+import type { CurrentUser, UpdateProfileInput } from '@dracing/contracts';
 import { createContext, useContext } from 'react';
 
 export type ViewRole = 'admin' | 'customer';
@@ -10,6 +10,7 @@ export interface AuthContextValue {
     email?: string;
     role?: ViewRole;
   }) => Promise<CurrentUser>;
+  updateProfile: (input: UpdateProfileInput) => Promise<CurrentUser>;
   user: CurrentUser | null;
 }
 

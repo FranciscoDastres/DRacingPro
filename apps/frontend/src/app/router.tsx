@@ -41,9 +41,24 @@ const ServicesPage = lazy(() =>
     default: m.ServicesPage,
   })),
 );
+const AccountPage = lazy(() =>
+  import('../features/account/AccountPage').then((m) => ({
+    default: m.AccountPage,
+  })),
+);
+const AdminDashboardPage = lazy(() =>
+  import('../features/admin/AdminDashboardPage').then((m) => ({
+    default: m.AdminDashboardPage,
+  })),
+);
 const AdminAppointmentsPage = lazy(() =>
   import('../features/admin/AdminAppointmentsPage').then((m) => ({
     default: m.AdminAppointmentsPage,
+  })),
+);
+const AdminUsersPage = lazy(() =>
+  import('../features/admin/AdminUsersPage').then((m) => ({
+    default: m.AdminUsersPage,
   })),
 );
 const WorkshopSettingsPage = lazy(() =>
@@ -71,10 +86,13 @@ export const router = createBrowserRouter([
           { element: <MotorcyclesPage />, path: 'motorcycles' },
           { element: <NotificationsPage />, path: 'notifications' },
           { element: <ServicesPage />, path: 'services' },
+          { element: <AccountPage />, path: 'account' },
           {
             element: <AdminRoute />,
             children: [
-              { element: <AdminAppointmentsPage />, path: 'admin' },
+              { element: <AdminDashboardPage />, path: 'admin' },
+              { element: <AdminAppointmentsPage />, path: 'admin/agenda' },
+              { element: <AdminUsersPage />, path: 'admin/users' },
               { element: <WorkshopSettingsPage />, path: 'admin/settings' },
             ],
           },

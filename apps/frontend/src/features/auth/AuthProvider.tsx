@@ -1,4 +1,4 @@
-import type { CurrentUser } from '@dracing/contracts';
+import type { CurrentUser, UpdateProfileInput } from '@dracing/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type PropsWithChildren, useMemo } from 'react';
 
@@ -33,15 +33,27 @@ export function AuthProvider({ children }: PropsWithChildren) {
       apiClient.post<CurrentUser>('/v1/auth/dev-login', params),
     onSuccess: (user) => queryClient.setQueryData(['current-user'], user),
   });
+  const updateProfileMutation = useMutation({
+    mutationFn: (input: UpdateProfileInput) =>
+      apiClient.patch<CurrentUser>('/v1/auth/me', input),
+    onSuccess: (user) => queryClient.setQueryData(['current-user'], user),
+  });
 
   const value = useMemo<AuthContextValue>(
     () => ({
       isLoading: userQuery.isLoading,
       logout: async () => logoutMutation.mutateAsync(),
       signIn: (params = {}) => signInMutation.mutateAsync(params),
+      updateProfile: (input) => updateProfileMutation.mutateAsync(input),
       user: userQuery.data ?? null,
     }),
-    [logoutMutation, signInMutation, userQuery.data, userQuery.isLoading],
+    [
+      logoutMutation,
+      signInMutation,
+      updateProfileMutation,
+      userQuery.data,
+      userQuery.isLoading,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
