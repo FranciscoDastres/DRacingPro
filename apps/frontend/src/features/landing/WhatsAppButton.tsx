@@ -11,12 +11,17 @@ export function WhatsAppButton() {
   return (
     <a
       aria-label="Consultar por WhatsApp"
-      className="fixed right-5 bottom-5 z-40 grid size-14 place-items-center rounded-full bg-[#25d366] text-white shadow-[0_12px_30px_rgba(37,211,102,.45)] transition hover:scale-105 hover:bg-[#20bd5a]"
+      className="group fixed right-5 bottom-5 z-40 flex items-center gap-2"
       href={whatsappLink(DEFAULT_MESSAGE)}
       rel="noreferrer"
       target="_blank"
     >
-      <WhatsAppIcon />
+      <span className="pointer-events-none translate-x-2 rounded-full bg-[#075e54] px-4 py-2 text-sm font-semibold text-white opacity-0 shadow-lg transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100 max-sm:hidden">
+        ¿En qué podemos ayudarte?
+      </span>
+      <span className="grid size-14 shrink-0 place-items-center rounded-full bg-[#25d366] text-white shadow-[0_12px_30px_rgba(37,211,102,.45)] transition group-hover:scale-105 group-hover:bg-[#20bd5a]">
+        <WhatsAppIcon />
+      </span>
     </a>
   );
 }
