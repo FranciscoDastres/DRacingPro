@@ -1,13 +1,13 @@
-import type { CurrentUser, UpdateProfileInput } from '@dracing/contracts';
+import type {
+  AdminLoginInput,
+  CurrentUser,
+  UpdateProfileInput,
+} from '@dracing/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type PropsWithChildren, useMemo } from 'react';
 
 import { apiClient, ApiError } from '../../lib/api-client';
-import {
-  AuthContext,
-  type AuthContextValue,
-  type ViewRole,
-} from './auth-context';
+import { AuthContext, type AuthContextValue } from './auth-context';
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const queryClient = useQueryClient();
@@ -28,9 +28,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
     mutationFn: () => apiClient.post<void>('/v1/auth/logout'),
     onSuccess: () => queryClient.setQueryData(['current-user'], null),
   });
-  const signInMutation = useMutation({
-    mutationFn: (params: { email?: string; role?: ViewRole }) =>
-      apiClient.post<CurrentUser>('/v1/auth/dev-login', params),
+  const adminLoginMutation = useMutation({
+    mutationFn: (input: AdminLoginInput) =>
+      apiClient.post<CurrentUser>('/v1/auth/login', input),
+    onSuccess: (user) => queryClient.setQueryData(['current-user'], user),
+  });
+  const developerLoginMutation = useMutation({
+    mutationFn: () => apiClient.post<CurrentUser>('/v1/auth/dev-login'),
     onSuccess: (user) => queryClient.setQueryData(['current-user'], user),
   });
   const updateProfileMutation = useMutation({
@@ -43,13 +47,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
     () => ({
       isLoading: userQuery.isLoading,
       logout: async () => logoutMutation.mutateAsync(),
-      signIn: (params = {}) => signInMutation.mutateAsync(params),
+      signInAdmin: (input) => adminLoginMutation.mutateAsync(input),
+      signInAsDeveloper: () => developerLoginMutation.mutateAsync(),
       updateProfile: (input) => updateProfileMutation.mutateAsync(input),
       user: userQuery.data ?? null,
     }),
     [
       logoutMutation,
-      signInMutation,
+      adminLoginMutation,
+      developerLoginMutation,
       updateProfileMutation,
       userQuery.data,
       userQuery.isLoading,
