@@ -38,9 +38,7 @@ export function AdminUsersPage() {
       header: 'Cliente',
     },
     {
-      cell: (user) => (
-        <span className="text-muted">{user.phone ?? '—'}</span>
-      ),
+      cell: (user) => <span className="text-muted">{user.phone ?? '—'}</span>,
       header: 'Teléfono',
     },
     {
@@ -79,22 +77,7 @@ export function AdminUsersPage() {
         user.isPrimaryAdmin ? (
           <span className="text-muted text-xs">Admin principal</span>
         ) : (
-          <div className="flex justify-end gap-2">
-            <Button
-              disabled={mutation.isPending}
-              onClick={() =>
-                mutation.mutate({
-                  id: user.id,
-                  input: {
-                    role: user.role === 'admin' ? 'customer' : 'admin',
-                  },
-                })
-              }
-              size="sm"
-              variant="secondary"
-            >
-              {user.role === 'admin' ? 'Quitar admin' : 'Hacer admin'}
-            </Button>
+          <div className="flex justify-end">
             <Button
               disabled={mutation.isPending}
               onClick={() =>
