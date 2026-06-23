@@ -1,5 +1,6 @@
-export { Badge, APPOINTMENT_STATUS_META, PROGRESS_STATUS_META } from './Badge';
+export { Badge } from './Badge';
 export type { BadgeTone } from './Badge';
+export { APPOINTMENT_STATUS_META, PROGRESS_STATUS_META } from './status-meta';
 export { Button } from './Button';
 export type { ButtonProps } from './Button';
 export { Card, StatCard } from './Card';

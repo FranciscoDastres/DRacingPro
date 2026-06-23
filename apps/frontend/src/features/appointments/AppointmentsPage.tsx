@@ -8,6 +8,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import { Badge } from '../../components/ui/Badge';
+import { APPOINTMENT_STATUS_META } from '../../components/ui/status-meta';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { formatCLP } from '../../components/ui/money';
+import { Tabs } from '../../components/ui/Tabs';
 import { apiClient } from '../../lib/api-client';
 import { AppointmentCalendar } from './AppointmentCalendar';
 import {
@@ -33,6 +38,14 @@ const slotTimeFormatter = new Intl.DateTimeFormat('es-CL', {
   timeZone: 'America/Santiago',
 });
 
+const UPCOMING_STATUSES: Appointment['status'][] = [
+  'requested',
+  'confirmed',
+  'checked_in',
+  'in_service',
+  'ready',
+];
+
 export function AppointmentsPage() {
   const queryClient = useQueryClient();
   const [motorcycleId, setMotorcycleId] = useState('');
@@ -43,6 +56,9 @@ export function AppointmentsPage() {
     string | null
   >(null);
   const [cancellationReason, setCancellationReason] = useState('');
+  const [appointmentsTab, setAppointmentsTab] = useState<'upcoming' | 'past'>(
+    'upcoming',
+  );
 
   const motorcycles = useQuery({
     queryFn: () => apiClient.get<Motorcycle[]>('/v1/motorcycles'),
@@ -132,6 +148,19 @@ export function AppointmentsPage() {
         : [...current, id],
     );
   };
+
+  const allAppointments = appointments.data ?? [];
+  const nowMs = new Date().getTime();
+  const upcomingAppointments = allAppointments.filter(
+    (item) =>
+      UPCOMING_STATUSES.includes(item.status) &&
+      new Date(item.startsAt).getTime() >= nowMs,
+  );
+  const pastAppointments = allAppointments.filter(
+    (item) => !upcomingAppointments.includes(item),
+  );
+  const visibleAppointments =
+    appointmentsTab === 'upcoming' ? upcomingAppointments : pastAppointments;
 
   return (
     <div>
@@ -351,33 +380,71 @@ export function AppointmentsPage() {
       </div>
 
       <section className="mt-12">
-        <h2 className="text-xl font-black">Tus citas</h2>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <h2 className="font-display text-xl font-extrabold">Tus citas</h2>
+          <Tabs
+            items={[
+              {
+                count: upcomingAppointments.length,
+                label: 'Próximas',
+                value: 'upcoming',
+              },
+              {
+                count: pastAppointments.length,
+                label: 'Historial',
+                value: 'past',
+              },
+            ]}
+            onChange={setAppointmentsTab}
+            value={appointmentsTab}
+          />
+        </div>
         <div className="mt-5 space-y-3">
-          {appointments.data?.map((item) => (
-            <article
-              className="bg-surface flex flex-wrap items-center justify-between gap-4 rounded-xl border border-white/10 p-5"
-              key={item.id}
-            >
-              <div>
-                <p className="font-semibold">{item.motorcycle.label}</p>
-                <p className="text-muted mt-1 text-sm">
-                  {item.services.map((service) => service.name).join(', ')}
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-semibold">
-                  {dateFormatter.format(new Date(item.startsAt))}
-                </p>
-                <p className="text-accent mt-1 text-xs">
-                  {statusLabel(item.status)}
-                </p>
-                <Link
-                  className="text-muted hover:text-accent mt-2 inline-block text-xs font-semibold"
-                  to={`/app/appointments/${item.id}`}
-                >
-                  Ver avance →
-                </Link>
-                {isCustomerCancellable(item) && (
+          {visibleAppointments.length === 0 && (
+            <EmptyState
+              icon="calendar"
+              title={
+                appointmentsTab === 'upcoming'
+                  ? 'No tienes citas próximas'
+                  : 'Aún no hay historial'
+              }
+              description={
+                appointmentsTab === 'upcoming'
+                  ? 'Agenda una mantención para tu Honda NAVI arriba.'
+                  : 'Tus citas completadas y canceladas aparecerán aquí.'
+              }
+            />
+          )}
+          {visibleAppointments.map((item) => {
+            const meta = APPOINTMENT_STATUS_META[item.status];
+            return (
+              <article
+                className="bg-surface flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/10 p-5"
+                key={item.id}
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold">{item.motorcycle.label}</p>
+                    <Badge tone={meta.tone}>{meta.label}</Badge>
+                  </div>
+                  <p className="text-muted mt-1 text-sm">
+                    {item.services.map((service) => service.name).join(', ')}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-semibold">
+                    {dateFormatter.format(new Date(item.startsAt))}
+                  </p>
+                  <p className="text-primary mt-1 text-sm font-bold tabular-nums">
+                    {formatCLP(item.total)}
+                  </p>
+                  <Link
+                    className="text-muted hover:text-accent mt-2 inline-block text-xs font-semibold"
+                    to={`/app/appointments/${item.id}`}
+                  >
+                    Ver avance →
+                  </Link>
+                  {isCustomerCancellable(item) && (
                   <button
                     aria-controls={`cancel-appointment-${item.id}`}
                     aria-expanded={cancellingAppointmentId === item.id}
@@ -459,9 +526,10 @@ export function AppointmentsPage() {
                     </button>
                   </div>
                 </div>
-              )}
-            </article>
-          ))}
+                )}
+              </article>
+            );
+          })}
         </div>
       </section>
     </div>
@@ -518,18 +586,4 @@ function isCustomerCancellable(appointment: Appointment): boolean {
 function isInvalidCancellationReason(reason: string): boolean {
   const length = reason.trim().length;
   return length > 0 && length < 3;
-}
-
-function statusLabel(status: Appointment['status']): string {
-  const labels: Record<Appointment['status'], string> = {
-    cancelled: 'Cancelada',
-    checked_in: 'Moto recibida',
-    completed: 'Completada',
-    confirmed: 'Confirmada',
-    in_service: 'En servicio',
-    no_show: 'No asistió',
-    ready: 'Lista para retiro',
-    requested: 'Solicitud enviada',
-  };
-  return labels[status];
 }

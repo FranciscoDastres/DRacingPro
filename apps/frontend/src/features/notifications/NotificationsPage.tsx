@@ -2,6 +2,10 @@ import type { CustomerMotorcycleUpdate } from '@dracing/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 
+import { Badge } from '../../components/ui/Badge';
+import { PROGRESS_STATUS_META } from '../../components/ui/status-meta';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { PageHeader } from '../../components/ui/PageHeader';
 import { apiClient } from '../../lib/api-client';
 
 const progressLabels: Record<
@@ -27,24 +31,21 @@ export function NotificationsPage() {
 
   return (
     <div className="max-w-3xl">
-      <p className="text-accent text-sm font-semibold">Novedades</p>
-      <h1 className="mt-2 text-3xl font-black tracking-tight">
-        Actualizaciones de tus motos
-      </h1>
-      <p className="text-muted mt-3">
-        Los últimos avances publicados por el equipo del taller.
-      </p>
+      <PageHeader
+        eyebrow="Novedades"
+        subtitle="Los últimos avances publicados por el equipo del taller."
+        title="Actualizaciones de tus motos"
+      />
 
       {!query.isLoading && query.data?.length === 0 && (
-        <div className="mt-8 rounded-2xl border border-dashed border-white/15 p-10 text-center">
-          <p className="font-bold">Todavía no hay novedades</p>
-          <p className="text-muted mt-2 text-sm">
-            Las actualizaciones aparecerán cuando una moto ingrese al taller.
-          </p>
-        </div>
+        <EmptyState
+          icon="spark"
+          title="Todavía no hay novedades"
+          description="Las actualizaciones aparecerán cuando una moto ingrese al taller."
+        />
       )}
 
-      <div className="mt-8 space-y-3">
+      <div className="space-y-3">
         {query.data?.map((update) => (
           <Link
             className="bg-surface hover:border-accent/40 block rounded-2xl border border-white/10 p-5 transition"
@@ -53,9 +54,14 @@ export function NotificationsPage() {
           >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-accent text-xs font-semibold">
-                  {update.motorcycleLabel}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-accent text-xs font-semibold">
+                    {update.motorcycleLabel}
+                  </p>
+                  <Badge tone={PROGRESS_STATUS_META[update.progressStatus].tone}>
+                    {PROGRESS_STATUS_META[update.progressStatus].label}
+                  </Badge>
+                </div>
                 <h2 className="mt-2 font-bold">
                   {progressLabels[update.progressStatus]}
                 </h2>
