@@ -23,7 +23,7 @@ const inputSchema = z
 const input = inputSchema.parse({
   databaseUrl:
     process.env.DATABASE_URL ??
-    'postgresql://dracing:dracing@localhost:5432/dracing',
+    'postgresql://dracing:dracing@localhost:55432/dracing',
   displayName: process.env.ADMIN_DISPLAY_NAME ?? 'Administrador D Racing Pro',
   email: process.env.ADMIN_EMAIL,
   generatePassword: process.env.ADMIN_GENERATE_PASSWORD === 'true',
