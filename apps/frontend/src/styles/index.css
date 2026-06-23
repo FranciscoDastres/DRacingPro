@@ -162,15 +162,6 @@ button,
   background: #111;
 }
 
-.landing-hero-image {
-  background-color: #171717;
-  background-image: url('/images/navi-service-hero.webp');
-  background-repeat: no-repeat;
-  background-size: cover;
-  background-position: 62% center;
-  transform: scale(1.015);
-}
-
 .landing-hero-overlay {
   background:
     linear-gradient(
@@ -185,10 +176,6 @@ button,
 }
 
 @media (max-width: 639px) {
-  .landing-hero-image {
-    background-position: 69% center;
-  }
-
   .landing-hero-overlay {
     background:
       linear-gradient(
