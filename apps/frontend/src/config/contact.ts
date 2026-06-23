@@ -15,9 +15,6 @@ export const CONTACT = {
   },
   /** Contact email for inquiries and data requests (placeholder). */
   email: 'contacto@dracingpro.cl',
-  /** Google Maps link to the workshop. */
-  mapsUrl:
-    'https://www.google.com/maps/search/?api=1&query=Rosas+2871,+Santiago,+Chile',
   /** Phone shown under "Contáctanos". */
   phoneDisplay: '+56 9 7319 6187',
   /**
