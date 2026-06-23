@@ -39,6 +39,8 @@ el mismo sitio (`app.dominio` y proxy `/api`) para reducir esa superficie.
   redacción de cookies, tokens, correo e IP según la política de retención.
 - El primer admin se aprovisiona mediante comando/migración controlada, nunca por
   dominio de correo implícito.
+- PostgreSQL limita el rol `admin` a una sola fila. Su contraseña se almacena con
+  scrypt y el login tiene límite estricto de intentos.
 
 No se guardan access/refresh tokens de Google porque el login no los necesita.
 Solo se persistirían cifrados si después se integra Google Calendar y el usuario

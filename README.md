@@ -9,8 +9,8 @@ especializado en Honda NAVI.
 - Frontend SPA: React, Vite, TypeScript y Tailwind CSS.
 - API: Node.js, Fastify y TypeScript, organizada por módulos y capas limpias.
 - Persistencia: PostgreSQL; Prisma se usará como adaptador, no dentro del dominio.
-- Autenticación: Google OAuth 2.0/OIDC mediante Authorization Code + PKCE y sesión
-  segura administrada por el backend.
+- Autenticación: Google OAuth 2.0/OIDC para clientes y una única cuenta local de
+  administrador, con sesión segura administrada por el backend.
 - Despliegues independientes para frontend, API y migraciones.
 
 ## Documentación
@@ -37,6 +37,20 @@ pnpm db:up
 pnpm db:migrate
 pnpm dev
 ```
+
+Después de las migraciones, crear el único administrador (el comando falla si ya
+existe uno):
+
+```bash
+ADMIN_EMAIL=administrador@ejemplo.cl \
+ADMIN_PASSWORD='una-clave-segura-de-12-o-mas' \
+ADMIN_DISPLAY_NAME='Administrador D Racing Pro' \
+pnpm --filter @dracing/backend admin:create
+```
+
+También se puede usar `ADMIN_GENERATE_PASSWORD=true` en lugar de
+`ADMIN_PASSWORD`; la contraseña generada se muestra una sola vez. Estas variables
+son de ejecución puntual y no deben guardarse en `.env`.
 
 - Frontend: <http://localhost:5180>
 - API: <http://localhost:3001/api>
@@ -94,6 +108,7 @@ Endpoints principales implementados:
 ```text
 GET    /v1/auth/google
 GET    /v1/auth/google/callback
+POST   /v1/auth/login
 GET    /v1/auth/me
 POST   /v1/auth/logout
 GET    /v1/services

@@ -75,9 +75,9 @@ hitos, en orden de prioridad:
 1. **Autenticación real con Google (en curso).** El flujo OAuth (PKCE, nonce,
    state, sesiones) está implementado; falta configurar credenciales reales
    (`GOOGLE_*` en `.env`), registrar la URI de redirección en Google Cloud y
-   verificar el flujo de punta a punta. La promoción a administrador por
-   `ADMIN_EMAILS` ya está lista. El acceso de desarrollo queda deshabilitado en
-   producción (`NODE_ENV`).
+   verificar el flujo de punta a punta. Google crea solo clientes; el único
+   administrador se aprovisiona por comando y contraseña local. El acceso de
+   desarrollo queda deshabilitado en producción (`NODE_ENV`).
 2. **Plataforma del cliente.** Pulir estados vacíos, carga, errores, responsive y
    accesibilidad en dashboard, reserva, motos, timeline y novedades; onboarding.
 3. **Intranet de administrador.** Panel-resumen con métricas (citas del día,
