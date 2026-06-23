@@ -10,6 +10,7 @@ import type {
   CreateAppointmentInput,
   CustomerMotorcycleUpdate,
   ReassignAppointmentInput,
+  RescheduleAppointmentInput,
   ServiceBay,
   UpdateAppointmentStatusInput,
 } from '@dracing/contracts';
@@ -234,6 +235,98 @@ export class AppointmentService {
     });
   }
 
+  async reschedule(
+    customerUserId: string,
+    appointmentId: string,
+    input: RescheduleAppointmentInput,
+  ): Promise<Appointment> {
+    const current = await this.database.appointments.findFirst({
+      include: appointmentInclude,
+      where: { customer_user_id: customerUserId, id: appointmentId },
+    });
+    if (!current) throw new AppointmentInputError('appointment_not_found');
+    if (
+      current.starts_at <= new Date() ||
+      !CUSTOMER_CANCELLABLE_STATUSES.includes(current.status)
+    ) {
+      throw new AppointmentTransitionError();
+    }
+
+    const requestedStart = new Date(input.startsAt);
+    if (requestedStart <= new Date()) throw new AppointmentTransitionError();
+    if (requestedStart.getTime() === current.starts_at.getTime()) {
+      return mapAppointment(current);
+    }
+
+    const serviceIds = current.appointment_services.map(
+      (service) => service.service_id,
+    );
+    const workshopDate = new Intl.DateTimeFormat('en-CA', {
+      day: '2-digit',
+      month: '2-digit',
+      timeZone: WORKSHOP_TIME_ZONE,
+      year: 'numeric',
+    }).format(requestedStart);
+    const slots = await this.getAvailability(serviceIds, workshopDate);
+    const slot = slots.find(
+      (candidate) => candidate.startsAt === requestedStart.toISOString(),
+    );
+    if (!slot) throw new AppointmentConflictError();
+
+    return this.database.$transaction(
+      async (transaction) => {
+        await transaction.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('workshop_appointments'))`;
+        const fresh = await transaction.appointments.findUnique({
+          where: { id: appointmentId },
+        });
+        if (!fresh || fresh.version !== current.version) {
+          throw new AppointmentConflictError();
+        }
+
+        const endsAt = new Date(slot.endsAt);
+        const conflict = await transaction.appointments.findFirst({
+          select: { id: true },
+          where: {
+            ends_at: { gt: requestedStart },
+            id: { not: appointmentId },
+            starts_at: { lt: endsAt },
+            status: { in: [...ACTIVE_STATUSES] },
+          },
+        });
+        if (conflict) throw new AppointmentConflictError();
+
+        const bay = await transaction.service_bays.findFirst({
+          orderBy: { name: 'asc' },
+          where: { is_active: true },
+        });
+        if (!bay) throw new AppointmentConflictError();
+
+        const updated = await transaction.appointments.update({
+          data: {
+            ends_at: endsAt,
+            service_bay_id: bay.id,
+            starts_at: requestedStart,
+            status: 'requested',
+            version: { increment: 1 },
+          },
+          include: appointmentInclude,
+          where: { id: appointmentId, version: current.version },
+        });
+        await transaction.appointment_status_history.create({
+          data: {
+            appointment_id: appointmentId,
+            changed_by_user_id: customerUserId,
+            from_status: current.status,
+            reason: 'Reprogramada por cliente',
+            to_status: 'requested',
+          },
+        });
+        return mapAppointment(updated);
+      },
+      { isolationLevel: 'Serializable' },
+    );
+  }
+
   async list(customerUserId: string): Promise<Appointment[]> {
     const appointments = await this.database.appointments.findMany({
       include: appointmentInclude,
@@ -372,6 +465,21 @@ export class AppointmentService {
           to_status: input.status,
         },
       });
+      if (input.status === 'in_service' || input.status === 'ready') {
+        await transaction.motorcycle_status_updates.create({
+          data: {
+            appointment_id: appointmentId,
+            created_by_user_id: adminUserId,
+            customer_visible: true,
+            message:
+              input.status === 'in_service'
+                ? 'El trabajo técnico en tu NAVI ya comenzó.'
+                : 'Tu NAVI está lista para retiro.',
+            progress_status:
+              input.status === 'in_service' ? 'repairing' : 'ready_for_pickup',
+          },
+        });
+      }
       return mapAppointment(updated);
     });
   }
@@ -461,7 +569,7 @@ const ALLOWED_STATUS_TRANSITIONS = {
   cancelled: [],
   checked_in: ['in_service', 'cancelled'],
   completed: [],
-  confirmed: ['checked_in', 'cancelled', 'no_show'],
+  confirmed: ['checked_in', 'in_service', 'cancelled', 'no_show'],
   in_service: ['ready'],
   no_show: [],
   ready: ['completed'],

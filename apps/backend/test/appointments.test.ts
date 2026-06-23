@@ -131,6 +131,25 @@ describe('appointment routes', () => {
     await app.close();
   });
 
+  it('reprograms an eligible appointment to a validated slot', async () => {
+    const reschedule = vi.fn(async () => appointment);
+    const app = await createApp(false, { reschedule });
+    const response = await app.inject({
+      headers: {
+        cookie: 'drp_session=test-session',
+        origin: 'http://localhost:5173',
+      },
+      method: 'PATCH',
+      payload: { startsAt: slot.startsAt },
+      url: `/v1/appointments/${appointment.id}/reschedule`,
+    });
+    expect(response.statusCode).toBe(200);
+    expect(reschedule).toHaveBeenCalledWith(testUser.id, appointment.id, {
+      startsAt: slot.startsAt,
+    });
+    await app.close();
+  });
+
   it('allows only administrators to read the workshop agenda', async () => {
     const customerApp = await createApp();
     const forbidden = await customerApp.inject({
@@ -246,6 +265,7 @@ async function createApp(
         listCustomerUpdates: async () => [motorcycleUpdate],
         listServiceBays: async () => [serviceBay, secondaryServiceBay],
         reassignServiceBay: async () => adminAppointment,
+        reschedule: async () => appointment,
         updateStatus: async () => appointment,
         ...overrides,
       },
