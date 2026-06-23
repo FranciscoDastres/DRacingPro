@@ -4,9 +4,10 @@ import type {
   AuthRepository,
   AuthUser,
   GoogleProfile,
+  ProfileUpdate,
   SessionMetadata,
-  UserRole,
 } from '../domain/auth.js';
+import { verifyPassword } from '../infrastructure/password.js';
 
 const DEFAULT_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -20,7 +21,6 @@ export class SessionService {
   constructor(
     private readonly repository: AuthRepository,
     private readonly sessionTtlMs = DEFAULT_SESSION_TTL_MS,
-    private readonly adminEmails: readonly string[] = [],
   ) {}
 
   async authenticate(token: string | undefined): Promise<AuthUser | null> {
@@ -32,36 +32,34 @@ export class SessionService {
     profile: GoogleProfile,
     metadata: SessionMetadata,
   ): Promise<CreatedSession> {
-    const upserted = await this.repository.upsertGoogleUser(profile);
-    // The emails configured as administrators are promoted on sign-in, so the
-    // principal admin gets workshop privileges without manual DB changes.
-    const user =
-      this.adminEmails.includes(profile.email.toLowerCase()) &&
-      upserted.role !== 'admin'
-        ? await this.repository.setUserRole(upserted.id, 'admin')
-        : upserted;
-    const token = randomBytes(32).toString('base64url');
-    const expiresAt = new Date(Date.now() + this.sessionTtlMs);
+    const user = await this.repository.upsertGoogleUser(profile);
+    return this.createSession(user, metadata);
+  }
 
-    await this.repository.createSession(
-      user.id,
-      hashSessionToken(token),
-      expiresAt,
-      metadata,
+  async loginAsAdmin(
+    email: string,
+    password: string,
+    metadata: SessionMetadata,
+  ): Promise<CreatedSession | null> {
+    const credentials = await this.repository.findLocalAdminByEmail(
+      email.trim().toLowerCase(),
     );
-
-    return { expiresAt, token, user };
+    if (!(await verifyPassword(password, credentials?.passwordHash ?? null))) {
+      return null;
+    }
+    if (!credentials) return null;
+    return this.createSession(credentials.user, metadata);
   }
 
-  isAdminEmail(email: string): boolean {
-    return this.adminEmails.includes(email.trim().toLowerCase());
+  async loginAsDeveloper(metadata: SessionMetadata): Promise<CreatedSession> {
+    const user = await this.repository.upsertDeveloperUser();
+    return this.createSession(user, metadata);
   }
 
-  async loginAsDeveloper(
-    role: UserRole,
+  private async createSession(
+    user: AuthUser,
     metadata: SessionMetadata,
   ): Promise<CreatedSession> {
-    const user = await this.repository.upsertDeveloperUser(role);
     const token = randomBytes(32).toString('base64url');
     const expiresAt = new Date(Date.now() + this.sessionTtlMs);
 
@@ -73,6 +71,13 @@ export class SessionService {
     );
 
     return { expiresAt, token, user };
+  }
+
+  async updateProfile(
+    userId: string,
+    update: ProfileUpdate,
+  ): Promise<AuthUser> {
+    return this.repository.updateProfile(userId, update);
   }
 
   async logout(token: string | undefined): Promise<void> {

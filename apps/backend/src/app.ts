@@ -5,6 +5,10 @@ import rateLimit from '@fastify/rate-limit';
 import Fastify, { type FastifyInstance } from 'fastify';
 
 import {
+  adminRoutes,
+  type AdminRoutesOptions,
+} from './modules/admin/presentation/routes.js';
+import {
   appointmentRoutes,
   type AppointmentRoutesOptions,
 } from './modules/appointments/presentation/routes.js';
@@ -27,6 +31,7 @@ import {
 } from './modules/workshop/presentation/routes.js';
 
 export interface BuildAppOptions {
+  admin?: AdminRoutesOptions;
   appOrigin: string;
   appointments?: AppointmentRoutesOptions;
   auth?: AuthRoutesOptions;
@@ -39,6 +44,7 @@ export interface BuildAppOptions {
 }
 
 export async function buildApp({
+  admin,
   appOrigin,
   appointments,
   auth,
@@ -95,6 +101,9 @@ export async function buildApp({
       ...workshopAdmin,
       prefix: '/v1/admin/workshop',
     });
+  }
+  if (admin) {
+    await app.register(adminRoutes, { ...admin, prefix: '/v1/admin' });
   }
 
   app.get('/api', async () => ({

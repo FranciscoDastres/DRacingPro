@@ -24,8 +24,16 @@ const appointment: Appointment = {
   ...slot,
   id: '78c865ca-8224-4e9e-a2e2-a9eddf4fb844',
   motorcycle: { id: motorcycleId, label: 'La Roja' },
-  services: [{ id: serviceId, name: 'Mantención básica' }],
+  services: [
+    {
+      currency: 'CLP',
+      id: serviceId,
+      name: 'Mantención básica',
+      unitPrice: 24990,
+    },
+  ],
   status: 'requested',
+  total: 24990,
 };
 const cancelledAppointment: Appointment = {
   ...appointment,

@@ -2,8 +2,9 @@ import type {
   AuthRepository,
   AuthUser,
   GoogleProfile,
+  LocalAdminCredentials,
+  ProfileUpdate,
   SessionMetadata,
-  UserRole,
 } from '../../src/modules/auth/domain/auth.js';
 
 export const testUser: AuthUser = {
@@ -11,10 +12,12 @@ export const testUser: AuthUser = {
   displayName: 'Cliente NAVI',
   email: 'cliente@example.com',
   id: '9d8ce4e1-1e2b-4a98-beb6-c96e8d5e63f2',
+  phone: null,
   role: 'customer',
 };
 
 export class MemoryAuthRepository implements AuthRepository {
+  passwordHash: string | null = null;
   revoked = false;
   user: AuthUser | null = testUser;
 
@@ -35,9 +38,30 @@ export class MemoryAuthRepository implements AuthRepository {
     this.revoked = true;
   }
 
-  async setUserRole(_userId: string, role: UserRole): Promise<AuthUser> {
+  async findLocalAdminByEmail(
+    email: string,
+  ): Promise<LocalAdminCredentials | null> {
+    if (
+      !this.user ||
+      this.user.email !== email ||
+      this.user.role !== 'admin' ||
+      !this.passwordHash
+    ) {
+      return null;
+    }
+    return { passwordHash: this.passwordHash, user: this.user };
+  }
+
+  async updateProfile(
+    _userId: string,
+    update: ProfileUpdate,
+  ): Promise<AuthUser> {
     if (!this.user) throw new Error('Test user is not configured');
-    this.user = { ...this.user, role };
+    this.user = {
+      ...this.user,
+      displayName: update.displayName,
+      phone: update.phone,
+    };
     return this.user;
   }
 
@@ -46,9 +70,9 @@ export class MemoryAuthRepository implements AuthRepository {
     return this.user;
   }
 
-  async upsertDeveloperUser(role: UserRole): Promise<AuthUser> {
+  async upsertDeveloperUser(): Promise<AuthUser> {
     if (!this.user) throw new Error('Test user is not configured');
-    this.user = { ...this.user, role };
+    this.user = { ...this.user, role: 'customer' };
     return this.user;
   }
 }

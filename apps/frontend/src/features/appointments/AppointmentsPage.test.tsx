@@ -19,12 +19,15 @@ const appointment: Appointment = {
   },
   services: [
     {
+      currency: 'CLP',
       id: '984a5c7b-2163-47d7-964d-e882388e1a2c',
       name: 'Mantención básica',
+      unitPrice: 24990,
     },
   ],
   startsAt: '2099-01-15T13:00:00.000Z',
   status: 'requested',
+  total: 24990,
 };
 const motorcycle: Motorcycle = {
   color: 'Rojo',

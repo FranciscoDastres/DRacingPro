@@ -11,27 +11,27 @@ interface LoginModalProps {
 
 /**
  * Sign-in dialog. Offers "Acceder con Google" (the real OAuth entry point) and a
- * credentials form. Password authentication is not implemented yet; in
- * development the email decides which view you enter (admin vs customer).
+ * local credentials form reserved for the single workshop administrator.
  */
 export function LoginModal({ onClose, open }: LoginModalProps) {
-  const { signIn } = useAuth();
+  const { signInAdmin } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(false);
 
   if (!open) return null;
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setBusy(true);
+    setError(false);
     try {
-      const user = await signIn({ email });
-      window.location.assign(
-        user.role === 'admin' ? '/app/admin' : '/app/appointments',
-      );
+      await signInAdmin({ email, password });
+      window.location.assign('/app/admin');
     } catch {
       setBusy(false);
+      setError(true);
     }
   };
 
@@ -61,7 +61,8 @@ export function LoginModal({ onClose, open }: LoginModalProps) {
           Iniciar sesión
         </h2>
         <p className="text-muted mt-2 text-sm">
-          Accede para agendar y seguir el estado de tu Honda NAVI.
+          Clientes acceden con Google. La cuenta local está reservada para la
+          administración del taller.
         </p>
 
         <button
@@ -79,6 +80,7 @@ export function LoginModal({ onClose, open }: LoginModalProps) {
         </div>
 
         <form className="space-y-4" onSubmit={submit}>
+          <p className="text-sm font-semibold">Acceso administrador</p>
           <label className="block">
             <span className="text-sm font-semibold">Correo</span>
             <input
@@ -98,6 +100,7 @@ export function LoginModal({ onClose, open }: LoginModalProps) {
               className="bg-background focus:border-accent mt-2 w-full rounded-lg border border-white/10 px-3 py-3 text-sm outline-none"
               onChange={(event) => setPassword(event.target.value)}
               placeholder="••••••••"
+              required
               type="password"
               value={password}
             />
@@ -109,16 +112,12 @@ export function LoginModal({ onClose, open }: LoginModalProps) {
           >
             {busy ? 'Entrando…' : 'Iniciar sesión'}
           </button>
+          {error && (
+            <p className="text-sm text-red-400" role="alert">
+              Correo o contraseña incorrectos.
+            </p>
+          )}
         </form>
-
-        {import.meta.env.DEV && (
-          <p className="text-muted mt-5 rounded-lg border border-white/10 bg-white/[0.03] p-3 text-xs">
-            <span className="text-foreground font-semibold">Desarrollo:</span>{' '}
-            un correo configurado en <code>ADMIN_EMAILS</code> abre la vista de
-            Administrador; cualquier otro correo, la vista de Cliente. La
-            contraseña aún no se valida.
-          </p>
-        )}
       </div>
     </div>
   );

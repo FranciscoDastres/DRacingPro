@@ -2,6 +2,7 @@ import { createDatabaseClient } from '@dracing/database';
 
 import { buildApp } from './app.js';
 import { parseEnvironment } from './config/env.js';
+import { AdminService } from './modules/admin/application/admin-service.js';
 import { AppointmentService } from './modules/appointments/application/appointment-service.js';
 import { SessionService } from './modules/auth/application/session-service.js';
 import { GoogleOidcClient } from './modules/auth/infrastructure/google-oidc.js';
@@ -12,15 +13,16 @@ import { WorkshopAdminService } from './modules/workshop/application/workshop-ad
 
 const environment = parseEnvironment();
 const database = createDatabaseClient(environment.DATABASE_URL);
-const sessions = new SessionService(
-  new PrismaAuthRepository(database),
-  undefined,
-  environment.ADMIN_EMAILS,
-);
+const sessions = new SessionService(new PrismaAuthRepository(database));
 const google = createGoogleClient();
 const appointmentService = new AppointmentService(database);
 const motorcycleRepository = new PrismaMotorcycleRepository(database);
 const app = await buildApp({
+  admin: {
+    admin: new AdminService(database),
+    appOrigin: environment.APP_ORIGIN,
+    sessions,
+  },
   appointments: {
     appOrigin: environment.APP_ORIGIN,
     appointments: appointmentService,

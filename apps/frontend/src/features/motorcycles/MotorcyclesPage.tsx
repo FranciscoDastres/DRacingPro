@@ -8,6 +8,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 
+import { Button } from '../../components/ui/Button';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { PageHeader } from '../../components/ui/PageHeader';
 import { apiClient } from '../../lib/api-client';
 
 const inputClassName =
@@ -40,24 +43,20 @@ export function MotorcyclesPage() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-accent text-sm font-semibold">Tu garaje</p>
-          <h1 className="mt-2 text-3xl font-black tracking-tight">
-            Mis Honda NAVI
-          </h1>
-          <p className="text-muted mt-3">
-            Registra cada moto para conservar su historial.
-          </p>
-        </div>
-        <button
-          className="bg-primary rounded-xl px-5 py-3 text-sm font-bold text-white transition hover:bg-[#ff554a]"
-          onClick={() => setShowForm((current) => !current)}
-          type="button"
-        >
-          {showForm ? 'Cerrar formulario' : 'Agregar NAVI'}
-        </button>
-      </div>
+      <PageHeader
+        actions={
+          <Button
+            icon={showForm ? 'close' : 'plus'}
+            onClick={() => setShowForm((current) => !current)}
+            variant={showForm ? 'secondary' : 'primary'}
+          >
+            {showForm ? 'Cerrar formulario' : 'Agregar NAVI'}
+          </Button>
+        }
+        eyebrow="Tu garaje"
+        subtitle="Registra cada moto para conservar su historial."
+        title="Mis Honda NAVI"
+      />
 
       {showForm && (
         <form
@@ -156,11 +155,12 @@ export function MotorcyclesPage() {
       )}
 
       {!query.isLoading && query.data?.length === 0 && (
-        <div className="mt-8 rounded-2xl border border-dashed border-white/15 p-10 text-center">
-          <p className="text-lg font-bold">Aún no tienes motos registradas</p>
-          <p className="text-muted mt-2 text-sm">
-            Agrega tu primera NAVI para comenzar.
-          </p>
+        <div className="mt-8">
+          <EmptyState
+            icon="bike"
+            title="Aún no tienes motos registradas"
+            description="Agrega tu primera NAVI para comenzar."
+          />
         </div>
       )}
 

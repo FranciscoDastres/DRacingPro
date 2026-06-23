@@ -42,9 +42,8 @@ La aplicación protege el área `/app` (incluido el calendario) detrás del logi
 Google. Para no depender de credenciales OAuth en local, el backend habilita un
 acceso de desarrollo cuando `NODE_ENV !== 'production'`:
 
-- `POST /v1/auth/dev-login` con `{ "role": "customer" | "admin" }` inicia sesión
-  como **Cliente** (`cliente@dracing.local`) o **Administrador**
-  (`admin@dracing.local`).
+- `POST /v1/auth/dev-login` inicia sesión únicamente como **Cliente**
+  (`cliente@dracing.local`). Nunca crea administradores.
 - `GET /v1/auth/google` — cuando no hay credenciales de Google configuradas —
   inicia sesión como Cliente y redirige al destino solicitado.
 
@@ -55,22 +54,25 @@ de prueba (el taller atiende solo ese modelo, por lo que no se pide elegir moto)
 Este acceso se desactiva automáticamente en producción (`allowDevLogin` en
 `AuthRoutesOptions`).
 
-### Ver como Cliente o Administrador
+### Crear y usar el administrador
 
-En desarrollo, un switch discreto abajo a la derecha (`AccountSwitcher`, solo
-visible con `import.meta.env.DEV`) permite alternar entre las dos cuentas:
+El administrador no usa Google ni el acceso de desarrollo. Después de aplicar
+las migraciones se aprovisiona una sola vez con acceso directo a PostgreSQL:
 
-- **Cliente** → vista de cliente (`/app/appointments`), donde se agendan citas.
-- **Administrador** → agenda del taller (`/app/admin`), donde se ven y gestionan
-  las citas agendadas.
+```bash
+ADMIN_EMAIL=administrador@ejemplo.cl \
+ADMIN_PASSWORD='una-clave-segura-de-12-o-mas' \
+ADMIN_DISPLAY_NAME='Administrador D Racing Pro' \
+pnpm --filter @dracing/backend admin:create
+```
 
-Flujo sugerido para verlo funcionando:
+Para generar una contraseña aleatoria, reemplazar `ADMIN_PASSWORD` por
+`ADMIN_GENERATE_PASSWORD=true` y guardarla inmediatamente en un gestor de
+contraseñas. Un índice único en PostgreSQL impide crear un segundo administrador
+y el comando rechaza toda ejecución posterior.
 
-1. **Cliente** → agenda una cita desde el modal.
-2. **Administrador** → la cita aparece en la agenda del taller (al refrescar).
-
-En producción no existe este switch: cada cuenta entra con su login de Google
-real y su rol correspondiente.
+En el modal de acceso, los clientes eligen Google y el administrador usa el
+formulario de correo/contraseña. El administrador entra a `/app/admin`.
 
 ## Flujo de agendamiento
 
@@ -95,20 +97,14 @@ La lógica de fechas/horarios compartida vive en
 
 ## Roles y administrador principal
 
-Hay dos roles: `customer` (cliente) y `admin`. Los clientes agendan y siguen sus
-citas; los administradores acceden a la intranet del taller (`/app/admin`) con más
-privilegios.
-
-El rol se asigna por correo mediante la variable **`ADMIN_EMAILS`** (lista
-separada por comas). Al iniciar sesión con Google, si el correo está en esa lista
-se promueve a `admin`; cualquier otro correo queda como `customer`. El primer
-correo configurado es el administrador principal del taller. En local se define
-en el script `dev` de `apps/backend` (por defecto
-`soporte.francisco.meza@gmail.com`).
+Hay dos roles: `customer` (cliente) y `admin`. Todo usuario de Google se crea como
+`customer`. Solo puede existir un `admin`, usa una contraseña local almacenada
+como hash scrypt y no puede convertirse desde el panel de clientes.
 
 ## Notas para producción
 
 - Configurar `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` y `GOOGLE_REDIRECT_URI`.
-- Definir `ADMIN_EMAILS` con el/los correo(s) del administrador principal.
+- Aprovisionar el administrador una sola vez y guardar la contraseña fuera del
+  repositorio.
 - `NODE_ENV=production` deshabilita el acceso de desarrollo.
 - `COOKIE_SECURE=true` y URLs HTTPS en `API_ORIGIN` / `APP_ORIGIN`.
