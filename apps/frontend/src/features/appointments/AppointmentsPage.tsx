@@ -55,6 +55,11 @@ export function AppointmentsPage() {
     string | null
   >(null);
   const [cancellationReason, setCancellationReason] = useState('');
+  const [reschedulingAppointmentId, setReschedulingAppointmentId] = useState<
+    string | null
+  >(null);
+  const [rescheduleDate, setRescheduleDate] = useState(getNextBookableDate());
+  const [rescheduleSlot, setRescheduleSlot] = useState('');
   const [appointmentsTab, setAppointmentsTab] = useState<'upcoming' | 'past'>(
     'upcoming',
   );
@@ -87,6 +92,27 @@ export function AppointmentsPage() {
   const appointments = useQuery({
     queryFn: () => apiClient.get<Appointment[]>('/v1/appointments'),
     queryKey: ['appointments'],
+  });
+  const reschedulingAppointment = appointments.data?.find(
+    (item) => item.id === reschedulingAppointmentId,
+  );
+  const rescheduleServiceIds =
+    reschedulingAppointment?.services.map((service) => service.id) ?? [];
+  const rescheduleAvailability = useQuery({
+    enabled:
+      Boolean(reschedulingAppointment) &&
+      Boolean(rescheduleDate) &&
+      rescheduleServiceIds.length > 0,
+    queryFn: () =>
+      apiClient.get<AvailabilitySlot[]>(
+        `/v1/availability?date=${rescheduleDate}&serviceIds=${rescheduleServiceIds.join(',')}`,
+      ),
+    queryKey: [
+      'availability',
+      'reschedule',
+      rescheduleDate,
+      rescheduleServiceIds,
+    ],
   });
   const availability = useQuery({
     enabled: serviceIds.length > 0 && Boolean(date),
@@ -129,6 +155,28 @@ export function AppointmentsPage() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['appointments'] }),
         queryClient.invalidateQueries({ queryKey: ['availability'] }),
+      ]);
+    },
+  });
+  const rescheduleAppointment = useMutation({
+    mutationFn: ({
+      appointmentId,
+      startsAt,
+    }: {
+      appointmentId: string;
+      startsAt: string;
+    }) =>
+      apiClient.patch<Appointment>(
+        `/v1/appointments/${appointmentId}/reschedule`,
+        { startsAt },
+      ),
+    onSuccess: async () => {
+      setReschedulingAppointmentId(null);
+      setRescheduleSlot('');
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['appointments'] }),
+        queryClient.invalidateQueries({ queryKey: ['availability'] }),
+        queryClient.invalidateQueries({ queryKey: ['customer', 'dashboard'] }),
       ]);
     },
   });
@@ -439,20 +487,36 @@ export function AppointmentsPage() {
                     Ver avance →
                   </Link>
                   {isCustomerCancellable(item) && (
-                    <button
-                      aria-controls={`cancel-appointment-${item.id}`}
-                      aria-expanded={cancellingAppointmentId === item.id}
-                      aria-label={`Cancelar cita de ${item.motorcycle.label}`}
-                      className="text-primary hover:text-danger mt-2 ml-4 text-xs font-semibold"
-                      onClick={() => {
-                        cancelAppointment.reset();
-                        setCancellationReason('');
-                        setCancellingAppointmentId(item.id);
-                      }}
-                      type="button"
-                    >
-                      Cancelar cita
-                    </button>
+                    <>
+                      <button
+                        aria-label={`Reprogramar cita de ${item.motorcycle.label}`}
+                        className="text-muted hover:text-accent mt-2 ml-4 text-xs font-semibold"
+                        onClick={() => {
+                          setCancellingAppointmentId(null);
+                          setRescheduleDate(getNextBookableDate());
+                          setRescheduleSlot('');
+                          rescheduleAppointment.reset();
+                          setReschedulingAppointmentId(item.id);
+                        }}
+                        type="button"
+                      >
+                        Reprogramar
+                      </button>
+                      <button
+                        aria-controls={`cancel-appointment-${item.id}`}
+                        aria-expanded={cancellingAppointmentId === item.id}
+                        aria-label={`Cancelar cita de ${item.motorcycle.label}`}
+                        className="text-primary hover:text-danger mt-2 ml-4 text-xs font-semibold"
+                        onClick={() => {
+                          cancelAppointment.reset();
+                          setCancellationReason('');
+                          setCancellingAppointmentId(item.id);
+                        }}
+                        type="button"
+                      >
+                        Cancelar cita
+                      </button>
+                    </>
                   )}
                 </div>
 
@@ -518,6 +582,78 @@ export function AppointmentsPage() {
                       >
                         Conservar cita
                       </button>
+                    </div>
+                  </div>
+                )}
+                {reschedulingAppointmentId === item.id && (
+                  <div className="bg-background basis-full rounded-xl border border-white/10 p-4 text-left">
+                    <div className="grid gap-5 lg:grid-cols-[280px_1fr]">
+                      <AppointmentCalendar
+                        minDate={getToday()}
+                        onChange={(nextDate) => {
+                          setRescheduleDate(nextDate);
+                          setRescheduleSlot('');
+                        }}
+                        value={rescheduleDate}
+                      />
+                      <div>
+                        <h3 className="text-sm font-bold">Nuevo horario</h3>
+                        <p className="text-muted mt-1 text-xs">
+                          La cita volverá a estado pendiente de confirmación.
+                        </p>
+                        {rescheduleAvailability.isFetching ? (
+                          <p className="text-muted mt-5 text-sm">
+                            Buscando horarios…
+                          </p>
+                        ) : (
+                          <div className="mt-4">
+                            <TimeSlotGroup
+                              label="Disponibles"
+                              onSelect={setRescheduleSlot}
+                              selectedSlot={rescheduleSlot}
+                              slots={rescheduleAvailability.data ?? []}
+                            />
+                          </div>
+                        )}
+                        {!rescheduleAvailability.isFetching &&
+                          rescheduleAvailability.data?.length === 0 && (
+                            <p className="text-muted mt-5 text-sm">
+                              No hay horarios disponibles para este día.
+                            </p>
+                          )}
+                        {rescheduleAppointment.isError && (
+                          <p className="mt-4 text-sm text-red-400" role="alert">
+                            El horario dejó de estar disponible. Selecciona
+                            otro.
+                          </p>
+                        )}
+                        <div className="mt-5 flex gap-2">
+                          <button
+                            className="bg-primary rounded-lg px-4 py-2 text-xs font-bold text-white disabled:opacity-40"
+                            disabled={
+                              !rescheduleSlot || rescheduleAppointment.isPending
+                            }
+                            onClick={() =>
+                              rescheduleAppointment.mutate({
+                                appointmentId: item.id,
+                                startsAt: rescheduleSlot,
+                              })
+                            }
+                            type="button"
+                          >
+                            {rescheduleAppointment.isPending
+                              ? 'Reprogramando…'
+                              : 'Confirmar cambio'}
+                          </button>
+                          <button
+                            className="text-muted rounded-lg border border-white/10 px-4 py-2 text-xs"
+                            onClick={() => setReschedulingAppointmentId(null)}
+                            type="button"
+                          >
+                            Cerrar
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}

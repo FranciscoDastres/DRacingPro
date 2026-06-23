@@ -8,12 +8,14 @@ export type IconName =
   | 'clock'
   | 'close'
   | 'edit'
+  | 'download'
   | 'history'
   | 'logout'
   | 'mail'
   | 'menu'
   | 'phone'
   | 'plus'
+  | 'receipt'
   | 'search'
   | 'settings'
   | 'shield'
@@ -58,6 +60,12 @@ const paths: Record<IconName, ReactNode> = {
       <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" />
     </>
   ),
+  download: (
+    <>
+      <path d="M12 3v12M7 10l5 5 5-5" />
+      <path d="M5 20h14" />
+    </>
+  ),
   history: (
     <>
       <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
@@ -81,6 +89,12 @@ const paths: Record<IconName, ReactNode> = {
     <path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L20 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z" />
   ),
   plus: <path d="M12 5v14M5 12h14" />,
+  receipt: (
+    <>
+      <path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z" />
+      <path d="M9 8h6M9 12h6M9 16h3" />
+    </>
+  ),
   search: (
     <>
       <circle cx="11" cy="11" r="7" />

@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Icon } from '../../components/ui/Icon';
+import { Modal } from '../../components/ui/Modal';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { apiClient } from '../../lib/api-client';
 
@@ -29,6 +30,17 @@ export function AdminAppointmentsPage() {
   const queryClient = useQueryClient();
   const [agendaView, setAgendaView] = useState<AgendaView>('day');
   const [selectedDate, setSelectedDate] = useState(getWorkshopToday());
+  const [closingAppointment, setClosingAppointment] =
+    useState<AdminAppointment | null>(null);
+  const [technicalSummary, setTechnicalSummary] = useState('');
+  const [performedText, setPerformedText] = useState('');
+  const [pendingText, setPendingText] = useState('');
+  const [recommendationsText, setRecommendationsText] = useState('');
+  const [maintenanceDate, setMaintenanceDate] = useState('');
+  const [maintenanceKm, setMaintenanceKm] = useState('');
+  const [paymentStatus, setPaymentStatus] = useState<'pending' | 'paid'>(
+    'pending',
+  );
   const range = getAgendaRange(selectedDate, agendaView);
 
   const appointments = useQuery({
@@ -44,7 +56,7 @@ export function AdminAppointmentsPage() {
       status,
     }: {
       id: string;
-      status: 'confirmed' | 'cancelled';
+      status: Appointment['status'];
     }) =>
       apiClient.patch<Appointment>(`/v1/admin/appointments/${id}/status`, {
         status,
@@ -56,6 +68,35 @@ export function AdminAppointmentsPage() {
         queryClient.invalidateQueries({
           queryKey: ['admin', 'pending-requests'],
         }),
+      ]);
+    },
+  });
+  const completeWork = useMutation({
+    mutationFn: (appointmentId: string) => {
+      const recommendations = parseItems(recommendationsText).map((item) => ({
+        ...item,
+        ...(maintenanceDate && {
+          dueAt: new Date(`${maintenanceDate}T12:00:00`).toISOString(),
+        }),
+        ...(maintenanceKm && { dueOdometerKm: Number(maintenanceKm) }),
+        severity: 'warning' as const,
+      }));
+      return apiClient.post(
+        `/v1/admin/appointments/${appointmentId}/complete-work`,
+        {
+          paymentStatus,
+          pending: parseItems(pendingText),
+          performed: parseItems(performedText),
+          recommendations,
+          technicalSummary,
+        },
+      );
+    },
+    onSuccess: async () => {
+      closeWorkModal();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['admin', 'appointments'] }),
+        queryClient.invalidateQueries({ queryKey: ['admin', 'metrics'] }),
       ]);
     },
   });
@@ -247,6 +288,36 @@ export function AdminAppointmentsPage() {
                       Confirmar
                     </Button>
                   )}
+                  {appointment.status === 'confirmed' && (
+                    <Button
+                      disabled={statusMutation.isPending}
+                      icon="tool"
+                      onClick={() =>
+                        statusMutation.mutate({
+                          id: appointment.id,
+                          status: 'in_service',
+                        })
+                      }
+                      size="sm"
+                    >
+                      Iniciar trabajo
+                    </Button>
+                  )}
+                  {appointment.status === 'in_service' && (
+                    <Button
+                      disabled={statusMutation.isPending}
+                      icon="check"
+                      onClick={() =>
+                        statusMutation.mutate({
+                          id: appointment.id,
+                          status: 'ready',
+                        })
+                      }
+                      size="sm"
+                    >
+                      Lista para retiro
+                    </Button>
+                  )}
                   {!cancelled && canCancel(appointment.status) && (
                     <Button
                       disabled={statusMutation.isPending}
@@ -262,6 +333,27 @@ export function AdminAppointmentsPage() {
                       Cancelar
                     </Button>
                   )}
+                  {!cancelled &&
+                    !['completed', 'no_show'].includes(appointment.status) && (
+                      <Button
+                        icon="tool"
+                        onClick={() => {
+                          setClosingAppointment(appointment);
+                          setTechnicalSummary('');
+                          setPerformedText('');
+                          setPendingText('');
+                          setRecommendationsText('');
+                          setMaintenanceDate('');
+                          setMaintenanceKm('');
+                          setPaymentStatus('pending');
+                          completeWork.reset();
+                        }}
+                        size="sm"
+                        variant="secondary"
+                      >
+                        Registrar atención
+                      </Button>
+                    )}
                 </div>
               </div>
             </Card>
@@ -274,8 +366,152 @@ export function AdminAppointmentsPage() {
           La cita cambió de estado y no pudo actualizarse. Recarga la agenda.
         </p>
       )}
+
+      <Modal
+        open={Boolean(closingAppointment)}
+        onClose={closeWorkModal}
+        eyebrow="Informe técnico"
+        title={`Finalizar atención · ${closingAppointment?.customer.displayName ?? ''}`}
+      >
+        <div className="space-y-4">
+          <label className="block">
+            <span className="text-muted mb-1.5 block text-xs font-semibold uppercase">
+              Resumen técnico
+            </span>
+            <textarea
+              className={textareaClass}
+              onChange={(event) => setTechnicalSummary(event.target.value)}
+              placeholder="Diagnóstico general y resultado de la atención"
+              value={technicalSummary}
+            />
+          </label>
+          <label className="block">
+            <span className="text-muted mb-1.5 block text-xs font-semibold uppercase">
+              Trabajo realizado
+            </span>
+            <textarea
+              className={textareaClass}
+              onChange={(event) => setPerformedText(event.target.value)}
+              placeholder={
+                'Un trabajo por línea. Formato: Título | Descripción'
+              }
+              value={performedText}
+            />
+          </label>
+          <label className="block">
+            <span className="text-muted mb-1.5 block text-xs font-semibold uppercase">
+              Trabajo pendiente
+            </span>
+            <textarea
+              className={textareaClass}
+              onChange={(event) => setPendingText(event.target.value)}
+              placeholder="Opcional: Título | Descripción"
+              value={pendingText}
+            />
+          </label>
+          <label className="block">
+            <span className="text-muted mb-1.5 block text-xs font-semibold uppercase">
+              Recomendaciones futuras
+            </span>
+            <textarea
+              className={textareaClass}
+              onChange={(event) => setRecommendationsText(event.target.value)}
+              placeholder="Opcional: Título | Descripción"
+              value={recommendationsText}
+            />
+          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label>
+              <span className="text-muted mb-1.5 block text-xs font-semibold uppercase">
+                Fecha recomendada
+              </span>
+              <input
+                className={inputClass}
+                onChange={(event) => setMaintenanceDate(event.target.value)}
+                type="date"
+                value={maintenanceDate}
+              />
+            </label>
+            <label>
+              <span className="text-muted mb-1.5 block text-xs font-semibold uppercase">
+                Kilometraje recomendado
+              </span>
+              <input
+                className={inputClass}
+                min="0"
+                onChange={(event) => setMaintenanceKm(event.target.value)}
+                type="number"
+                value={maintenanceKm}
+              />
+            </label>
+          </div>
+          <label className="block">
+            <span className="text-muted mb-1.5 block text-xs font-semibold uppercase">
+              Estado de pago
+            </span>
+            <select
+              className={inputClass}
+              onChange={(event) =>
+                setPaymentStatus(event.target.value as 'pending' | 'paid')
+              }
+              value={paymentStatus}
+            >
+              <option value="pending">Pendiente</option>
+              <option value="paid">Pagado</option>
+            </select>
+          </label>
+          {completeWork.isError && (
+            <p className="text-sm text-red-400" role="alert">
+              No fue posible finalizar la atención. Revisa los datos e inténtalo
+              nuevamente.
+            </p>
+          )}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button onClick={closeWorkModal} variant="ghost">
+              Cancelar
+            </Button>
+            <Button
+              disabled={
+                parseItems(performedText).length === 0 ||
+                technicalSummary.trim().length < 3
+              }
+              loading={completeWork.isPending}
+              onClick={() =>
+                closingAppointment && completeWork.mutate(closingAppointment.id)
+              }
+            >
+              Finalizar y emitir comprobante
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
+
+  function closeWorkModal() {
+    setClosingAppointment(null);
+    completeWork.reset();
+  }
+}
+
+const textareaClass =
+  'bg-background focus:border-accent min-h-20 w-full resize-y rounded-xl border border-white/10 px-3 py-2 text-sm outline-none';
+const inputClass =
+  'bg-background focus:border-accent w-full rounded-xl border border-white/10 px-3 py-2.5 text-sm outline-none';
+
+function parseItems(
+  value: string,
+): Array<{ title: string; description: string }> {
+  return value
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [title, ...descriptionParts] = line.split('|');
+      const normalizedTitle = title?.trim() ?? line;
+      const description = descriptionParts.join('|').trim() || normalizedTitle;
+      return { description, title: normalizedTitle };
+    });
 }
 
 function toWhatsAppUrl(

@@ -11,8 +11,10 @@ interface NavItem {
 }
 
 const customerNav: NavItem[] = [
-  { end: true, icon: 'chart', label: 'Resumen', to: '/app' },
-  { icon: 'calendar', label: 'Agenda', to: '/app/appointments' },
+  { end: true, icon: 'chart', label: 'Inicio', to: '/app' },
+  { icon: 'calendar', label: 'Citas', to: '/app/appointments' },
+  { icon: 'history', label: 'Historial', to: '/app/history' },
+  { icon: 'receipt', label: 'Boletas', to: '/app/billing' },
   { icon: 'tool', label: 'Servicios', to: '/app/services' },
 ];
 
@@ -88,7 +90,7 @@ export function AppShell() {
       <div className="mx-auto grid max-w-[1600px] lg:grid-cols-[240px_minmax(0,1fr)]">
         <nav
           aria-label="Navegación principal"
-          className="bg-background/55 flex gap-2 overflow-x-auto border-b border-white/8 px-4 py-3 backdrop-blur-lg lg:sticky lg:top-[65px] lg:h-[calc(100vh-65px)] lg:flex-col lg:gap-1 lg:overflow-y-auto lg:border-r lg:border-b-0 lg:px-4 lg:py-6"
+          className="bg-background/92 fixed right-0 bottom-0 left-0 z-40 grid grid-cols-5 gap-1 border-t border-white/10 px-2 py-2 backdrop-blur-xl lg:sticky lg:top-[65px] lg:z-auto lg:flex lg:h-[calc(100vh-65px)] lg:flex-col lg:gap-1 lg:overflow-y-auto lg:border-t-0 lg:border-r lg:px-4 lg:py-6"
         >
           <p className="text-muted hidden px-3 pb-2 text-[0.62rem] font-semibold tracking-[0.18em] uppercase lg:block">
             {isAdmin ? 'Centro de operaciones' : 'Mi taller'}
@@ -107,7 +109,7 @@ export function AppShell() {
           )}
         </nav>
 
-        <main className="min-w-0 px-4 py-7 sm:px-6 lg:px-8 lg:py-8 xl:px-10">
+        <main className="min-w-0 px-4 pt-7 pb-24 sm:px-6 lg:px-8 lg:py-8 xl:px-10">
           <Outlet />
         </main>
       </div>
@@ -119,7 +121,7 @@ function NavItemLink({ item }: { item: NavItem }) {
   return (
     <NavLink
       className={({ isActive }) =>
-        `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold whitespace-nowrap transition-all ${
+        `flex min-w-0 flex-col items-center gap-1 rounded-lg px-1 py-1.5 text-[0.62rem] font-semibold whitespace-nowrap transition-all lg:flex-row lg:gap-3 lg:px-3 lg:py-2.5 lg:text-sm ${
           isActive
             ? 'bg-primary/12 text-foreground shadow-[inset_2px_0_0_var(--color-primary)]'
             : 'text-muted hover:text-foreground hover:bg-white/[0.04]'
@@ -129,7 +131,7 @@ function NavItemLink({ item }: { item: NavItem }) {
       to={item.to}
     >
       <Icon className="size-4.5 shrink-0" name={item.icon} />
-      {item.label}
+      <span className="max-w-full truncate">{item.label}</span>
     </NavLink>
   );
 }

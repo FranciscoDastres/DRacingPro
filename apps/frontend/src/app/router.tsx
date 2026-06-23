@@ -31,6 +31,16 @@ const ServicesPage = lazy(() =>
     default: m.ServicesPage,
   })),
 );
+const ServiceHistoryPage = lazy(() =>
+  import('../features/history/ServiceHistoryPage').then((m) => ({
+    default: m.ServiceHistoryPage,
+  })),
+);
+const BillingPage = lazy(() =>
+  import('../features/billing/BillingPage').then((m) => ({
+    default: m.BillingPage,
+  })),
+);
 const AdminDashboardPage = lazy(() =>
   import('../features/admin/AdminDashboardPage').then((m) => ({
     default: m.AdminDashboardPage,
@@ -73,6 +83,8 @@ export const router = createBrowserRouter([
           { element: <DashboardPage />, index: true },
           { element: <AppointmentsPage />, path: 'appointments' },
           { element: <AppointmentTimelinePage />, path: 'appointments/:id' },
+          { element: <ServiceHistoryPage />, path: 'history' },
+          { element: <BillingPage />, path: 'billing' },
           { element: <ServicesPage />, path: 'services' },
           {
             element: <AdminRoute />,
