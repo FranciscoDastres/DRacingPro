@@ -18,10 +18,23 @@ export const CurrentUserSchema = z.object({
   email: z.email(),
   displayName: z.string(),
   avatarUrl: z.url().nullable(),
+  phone: z.string().nullable(),
   role: UserRoleSchema,
 });
 
 export type CurrentUser = z.infer<typeof CurrentUserSchema>;
+
+export const UpdateProfileSchema = z.object({
+  displayName: z.string().trim().min(1).max(120),
+  phone: z
+    .string()
+    .trim()
+    .max(32)
+    .nullish()
+    .transform((value) => (value ? value : null)),
+});
+
+export type UpdateProfileInput = z.infer<typeof UpdateProfileSchema>;
 
 export const MotorcycleSchema = z.object({
   id: z.uuid(),
@@ -107,9 +120,12 @@ export const AppointmentSchema = z.object({
     z.object({
       id: z.uuid(),
       name: z.string(),
+      unitPrice: z.number().int().nonnegative(),
+      currency: z.string().length(3),
     }),
   ),
   startsAt: z.iso.datetime(),
+  total: z.number().int().nonnegative(),
   status: z.enum([
     'requested',
     'confirmed',
@@ -305,3 +321,58 @@ export type CustomerMotorcycleUpdate = z.infer<
   typeof CustomerMotorcycleUpdateSchema
 >;
 export type AppointmentTimeline = z.infer<typeof AppointmentTimelineSchema>;
+
+export const AdminUserSchema = z.object({
+  appointmentCount: z.number().int().nonnegative(),
+  createdAt: z.iso.datetime(),
+  displayName: z.string(),
+  email: z.email(),
+  id: z.uuid(),
+  isActive: z.boolean(),
+  isPrimaryAdmin: z.boolean(),
+  phone: z.string().nullable(),
+  role: UserRoleSchema,
+  totalSpent: z.number().int().nonnegative(),
+});
+
+export type AdminUser = z.infer<typeof AdminUserSchema>;
+
+export const UpdateUserSchema = z
+  .object({
+    isActive: z.boolean().optional(),
+    role: UserRoleSchema.optional(),
+  })
+  .refine(
+    (value) => value.isActive !== undefined || value.role !== undefined,
+    'At least one field is required',
+  );
+
+export type UpdateUserInput = z.infer<typeof UpdateUserSchema>;
+
+export const AdminMetricsSchema = z.object({
+  appointmentsByStatus: z.record(z.string(), z.number().int().nonnegative()),
+  averageTicket: z.number().int().nonnegative(),
+  completedCount: z.number().int().nonnegative(),
+  pendingRequests: z.number().int().nonnegative(),
+  revenueByDay: z.array(
+    z.object({ date: z.iso.date(), total: z.number().int().nonnegative() }),
+  ),
+  revenueByService: z.array(
+    z.object({ name: z.string(), total: z.number().int().nonnegative() }),
+  ),
+  totalRevenue: z.number().int().nonnegative(),
+});
+
+export type AdminMetrics = z.infer<typeof AdminMetricsSchema>;
+
+export const AdminMetricsFiltersSchema = z
+  .object({
+    from: z.iso.date(),
+    to: z.iso.date(),
+  })
+  .refine((value) => value.from <= value.to, {
+    message: 'End date must be after start date',
+    path: ['to'],
+  });
+
+export type AdminMetricsFilters = z.infer<typeof AdminMetricsFiltersSchema>;
