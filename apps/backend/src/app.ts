@@ -18,6 +18,10 @@ import {
 } from './modules/auth/presentation/routes.js';
 import { healthRoutes } from './modules/health/presentation/routes.js';
 import {
+  customerRoutes,
+  type CustomerRoutesOptions,
+} from './modules/customer/presentation/routes.js';
+import {
   motorcycleRoutes,
   type MotorcycleRoutesOptions,
 } from './modules/motorcycles/presentation/routes.js';
@@ -37,6 +41,7 @@ export interface BuildAppOptions {
   auth?: AuthRoutesOptions;
   checkDatabase: () => Promise<void>;
   cookieSecret?: string;
+  customer?: CustomerRoutesOptions;
   logger?: boolean;
   motorcycles?: MotorcycleRoutesOptions;
   services?: ServiceRoutesOptions;
@@ -50,6 +55,7 @@ export async function buildApp({
   auth,
   checkDatabase,
   cookieSecret = 'test-cookie-secret-must-have-32-characters',
+  customer,
   logger = true,
   motorcycles,
   services,
@@ -84,6 +90,9 @@ export async function buildApp({
   });
 
   if (auth) await app.register(authRoutes, { ...auth, prefix: '/v1/auth' });
+  if (customer) {
+    await app.register(customerRoutes, { ...customer, prefix: '/v1' });
+  }
   if (appointments) {
     await app.register(appointmentRoutes, { ...appointments, prefix: '/v1' });
   }

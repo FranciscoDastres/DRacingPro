@@ -116,6 +116,14 @@ export const CancelAppointmentSchema = z.object({
 
 export type CancelAppointmentInput = z.infer<typeof CancelAppointmentSchema>;
 
+export const RescheduleAppointmentSchema = z.object({
+  startsAt: z.iso.datetime(),
+});
+
+export type RescheduleAppointmentInput = z.infer<
+  typeof RescheduleAppointmentSchema
+>;
+
 export const AppointmentSchema = z.object({
   endsAt: z.iso.datetime(),
   id: z.uuid(),
@@ -160,6 +168,7 @@ export const AdminAppointmentSchema = AppointmentSchema.extend({
     displayName: z.string(),
     email: z.email(),
     id: z.uuid(),
+    phone: z.string().nullable(),
   }),
   serviceBay: ServiceBaySchema,
 });
@@ -329,6 +338,84 @@ export type CustomerMotorcycleUpdate = z.infer<
 >;
 export type AppointmentTimeline = z.infer<typeof AppointmentTimelineSchema>;
 
+export const ServiceHistoryWorkItemSchema = z.object({
+  description: z.string(),
+  id: z.uuid(),
+  title: z.string(),
+});
+
+export const ServiceRecommendationSchema = ServiceHistoryWorkItemSchema.extend({
+  dueAt: z.iso.datetime().nullable(),
+  dueOdometerKm: z.number().int().nonnegative().nullable(),
+  severity: z.enum(['info', 'warning', 'critical']),
+});
+
+export const ServiceHistoryRecordSchema = z.object({
+  appointmentId: z.uuid(),
+  completedAt: z.iso.datetime(),
+  motorcycleLabel: z.string(),
+  progress: z.array(CustomerMotorcycleUpdateSchema),
+  recommendations: z.array(ServiceRecommendationSchema),
+  services: z.array(z.string()),
+  technicalSummary: z.string(),
+  total: z.number().int().nonnegative(),
+  workPending: z.array(ServiceHistoryWorkItemSchema),
+  workPerformed: z.array(ServiceHistoryWorkItemSchema),
+});
+
+export type ServiceHistoryWorkItem = z.infer<
+  typeof ServiceHistoryWorkItemSchema
+>;
+export type ServiceRecommendation = z.infer<typeof ServiceRecommendationSchema>;
+export type ServiceHistoryRecord = z.infer<typeof ServiceHistoryRecordSchema>;
+
+export const InvoiceSchema = z.object({
+  amount: z.number().int().nonnegative(),
+  appointmentId: z.uuid(),
+  currency: z.string().length(3),
+  documentNumber: z.string(),
+  id: z.uuid(),
+  issuedAt: z.iso.datetime(),
+  paidAt: z.iso.datetime().nullable(),
+  paymentStatus: z.enum(['pending', 'paid']),
+  services: z.array(z.string()),
+});
+
+export type Invoice = z.infer<typeof InvoiceSchema>;
+
+export const CustomerDashboardSchema = z.object({
+  activeAppointment: AppointmentSchema.nullable(),
+  latestProgress: CustomerMotorcycleUpdateSchema.nullable(),
+  nextAppointment: AppointmentSchema.nullable(),
+  nextMaintenance: ServiceRecommendationSchema.nullable(),
+  unpaidInvoices: z.number().int().nonnegative(),
+});
+
+export type CustomerDashboard = z.infer<typeof CustomerDashboardSchema>;
+
+const WorkItemInputSchema = z.object({
+  description: z.string().trim().min(2).max(2000),
+  title: z.string().trim().min(2).max(160),
+});
+
+const RecommendationInputSchema = WorkItemInputSchema.extend({
+  dueAt: z.iso.datetime().optional(),
+  dueOdometerKm: z.number().int().nonnegative().optional(),
+  severity: z.enum(['info', 'warning', 'critical']).default('info'),
+});
+
+export const CompleteAppointmentWorkSchema = z.object({
+  paymentStatus: z.enum(['pending', 'paid']).default('pending'),
+  performed: z.array(WorkItemInputSchema).min(1).max(30),
+  pending: z.array(WorkItemInputSchema).max(30).default([]),
+  recommendations: z.array(RecommendationInputSchema).max(30).default([]),
+  technicalSummary: z.string().trim().min(3).max(5000),
+});
+
+export type CompleteAppointmentWorkInput = z.infer<
+  typeof CompleteAppointmentWorkSchema
+>;
+
 export const AdminUserSchema = z.object({
   appointmentCount: z.number().int().nonnegative(),
   createdAt: z.iso.datetime(),
@@ -344,12 +431,28 @@ export const AdminUserSchema = z.object({
 
 export type AdminUser = z.infer<typeof AdminUserSchema>;
 
+export const CreateAdminUserSchema = z.object({
+  displayName: z.string().trim().min(1).max(120),
+  email: z.email().trim().toLowerCase(),
+  phone: z
+    .string()
+    .trim()
+    .max(32)
+    .nullish()
+    .transform((value) => (value ? value : null)),
+});
+
+export type CreateAdminUserInput = z.infer<typeof CreateAdminUserSchema>;
+
 export const UpdateUserSchema = z
   .object({
+    displayName: z.string().trim().min(1).max(120).optional(),
+    email: z.email().trim().toLowerCase().optional(),
     isActive: z.boolean().optional(),
+    phone: z.string().trim().max(32).nullable().optional(),
   })
   .refine(
-    (value) => value.isActive !== undefined,
+    (value) => Object.values(value).some((item) => item !== undefined),
     'At least one field is required',
   );
 
@@ -359,6 +462,10 @@ export const AdminMetricsSchema = z.object({
   appointmentsByStatus: z.record(z.string(), z.number().int().nonnegative()),
   averageTicket: z.number().int().nonnegative(),
   completedCount: z.number().int().nonnegative(),
+  newUsersCount: z.number().int().nonnegative(),
+  newUsersByDay: z.array(
+    z.object({ date: z.iso.date(), total: z.number().int().nonnegative() }),
+  ),
   pendingRequests: z.number().int().nonnegative(),
   revenueByDay: z.array(
     z.object({ date: z.iso.date(), total: z.number().int().nonnegative() }),

@@ -24,20 +24,20 @@ export function AuthProvider({ children }: PropsWithChildren) {
     retry: false,
     staleTime: 60_000,
   });
-  const logoutMutation = useMutation({
+  const { mutateAsync: logout } = useMutation({
     mutationFn: () => apiClient.post<void>('/v1/auth/logout'),
     onSuccess: () => queryClient.setQueryData(['current-user'], null),
   });
-  const adminLoginMutation = useMutation({
+  const { mutateAsync: signInAdmin } = useMutation({
     mutationFn: (input: AdminLoginInput) =>
       apiClient.post<CurrentUser>('/v1/auth/login', input),
     onSuccess: (user) => queryClient.setQueryData(['current-user'], user),
   });
-  const developerLoginMutation = useMutation({
+  const { mutateAsync: signInAsDeveloper } = useMutation({
     mutationFn: () => apiClient.post<CurrentUser>('/v1/auth/dev-login'),
     onSuccess: (user) => queryClient.setQueryData(['current-user'], user),
   });
-  const updateProfileMutation = useMutation({
+  const { mutateAsync: updateProfile } = useMutation({
     mutationFn: (input: UpdateProfileInput) =>
       apiClient.patch<CurrentUser>('/v1/auth/me', input),
     onSuccess: (user) => queryClient.setQueryData(['current-user'], user),
@@ -46,17 +46,17 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const value = useMemo<AuthContextValue>(
     () => ({
       isLoading: userQuery.isLoading,
-      logout: async () => logoutMutation.mutateAsync(),
-      signInAdmin: (input) => adminLoginMutation.mutateAsync(input),
-      signInAsDeveloper: () => developerLoginMutation.mutateAsync(),
-      updateProfile: (input) => updateProfileMutation.mutateAsync(input),
+      logout: async () => logout(),
+      signInAdmin,
+      signInAsDeveloper,
+      updateProfile,
       user: userQuery.data ?? null,
     }),
     [
-      logoutMutation,
-      adminLoginMutation,
-      developerLoginMutation,
-      updateProfileMutation,
+      logout,
+      signInAdmin,
+      signInAsDeveloper,
+      updateProfile,
       userQuery.data,
       userQuery.isLoading,
     ],

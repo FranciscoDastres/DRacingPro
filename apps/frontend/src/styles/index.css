@@ -17,10 +17,10 @@
 }
 
 @theme {
-  --color-background: #090909;
-  --color-surface: #141414;
-  --color-foreground: #f4f4f4;
-  --color-muted: #a4a4a4;
+  --color-background: #07090d;
+  --color-surface: #0e131a;
+  --color-foreground: #f5f7fa;
+  --color-muted: #8d98a8;
   --color-primary: #e60023;
   --color-accent: #ff2948;
   --color-success: #32d583;
@@ -46,6 +46,17 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+}
+
+.admin-grid-bg {
+  background-image:
+    radial-gradient(circle at 88% 8%, rgb(230 0 35 / 8%), transparent 28rem),
+    linear-gradient(rgb(255 255 255 / 1.5%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 1.5%) 1px, transparent 1px);
+  background-size:
+    auto,
+    32px 32px,
+    32px 32px;
 }
 
 h1,

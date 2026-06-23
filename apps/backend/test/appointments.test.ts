@@ -55,6 +55,7 @@ const adminAppointment: AdminAppointment = {
     displayName: testUser.displayName,
     email: testUser.email,
     id: testUser.id,
+    phone: '+56912345678',
   },
   serviceBay,
 };
@@ -126,6 +127,25 @@ describe('appointment routes', () => {
     expect(accepted.json()).toEqual(cancelledAppointment);
     expect(cancel).toHaveBeenCalledWith(testUser.id, appointment.id, {
       reason: 'Cambio de planes',
+    });
+    await app.close();
+  });
+
+  it('reprograms an eligible appointment to a validated slot', async () => {
+    const reschedule = vi.fn(async () => appointment);
+    const app = await createApp(false, { reschedule });
+    const response = await app.inject({
+      headers: {
+        cookie: 'drp_session=test-session',
+        origin: 'http://localhost:5173',
+      },
+      method: 'PATCH',
+      payload: { startsAt: slot.startsAt },
+      url: `/v1/appointments/${appointment.id}/reschedule`,
+    });
+    expect(response.statusCode).toBe(200);
+    expect(reschedule).toHaveBeenCalledWith(testUser.id, appointment.id, {
+      startsAt: slot.startsAt,
     });
     await app.close();
   });
@@ -245,6 +265,7 @@ async function createApp(
         listCustomerUpdates: async () => [motorcycleUpdate],
         listServiceBays: async () => [serviceBay, secondaryServiceBay],
         reassignServiceBay: async () => adminAppointment,
+        reschedule: async () => appointment,
         updateStatus: async () => appointment,
         ...overrides,
       },

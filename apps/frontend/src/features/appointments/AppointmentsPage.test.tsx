@@ -153,14 +153,9 @@ describe('AppointmentsPage', () => {
       </MemoryRouter>,
     );
 
-    const motorcycleSelect = await screen.findByRole('combobox', {
-      name: 'Selecciona tu Honda NAVI',
-    });
-    await screen.findByRole('option', { name: /La Roja/ });
-    fireEvent.change(motorcycleSelect, {
-      target: { value: motorcycle.id },
-    });
-    expect(motorcycleSelect).toHaveValue(motorcycle.id);
+    expect(
+      screen.queryByRole('combobox', { name: 'Selecciona tu Honda NAVI' }),
+    ).not.toBeInTheDocument();
     fireEvent.click(
       await screen.findByRole('checkbox', { name: /diagnóstico general/i }),
     );

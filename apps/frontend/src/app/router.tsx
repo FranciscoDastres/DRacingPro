@@ -26,24 +26,19 @@ const AppointmentTimelinePage = lazy(() =>
     default: m.AppointmentTimelinePage,
   })),
 );
-const MotorcyclesPage = lazy(() =>
-  import('../features/motorcycles/MotorcyclesPage').then((m) => ({
-    default: m.MotorcyclesPage,
-  })),
-);
-const NotificationsPage = lazy(() =>
-  import('../features/notifications/NotificationsPage').then((m) => ({
-    default: m.NotificationsPage,
-  })),
-);
 const ServicesPage = lazy(() =>
   import('../features/services/ServicesPage').then((m) => ({
     default: m.ServicesPage,
   })),
 );
-const AccountPage = lazy(() =>
-  import('../features/account/AccountPage').then((m) => ({
-    default: m.AccountPage,
+const ServiceHistoryPage = lazy(() =>
+  import('../features/history/ServiceHistoryPage').then((m) => ({
+    default: m.ServiceHistoryPage,
+  })),
+);
+const BillingPage = lazy(() =>
+  import('../features/billing/BillingPage').then((m) => ({
+    default: m.BillingPage,
   })),
 );
 const AdminDashboardPage = lazy(() =>
@@ -59,6 +54,11 @@ const AdminAppointmentsPage = lazy(() =>
 const AdminUsersPage = lazy(() =>
   import('../features/admin/AdminUsersPage').then((m) => ({
     default: m.AdminUsersPage,
+  })),
+);
+const AdminServicesPage = lazy(() =>
+  import('../features/admin/AdminServicesPage').then((m) => ({
+    default: m.AdminServicesPage,
   })),
 );
 const WorkshopSettingsPage = lazy(() =>
@@ -83,16 +83,16 @@ export const router = createBrowserRouter([
           { element: <DashboardPage />, index: true },
           { element: <AppointmentsPage />, path: 'appointments' },
           { element: <AppointmentTimelinePage />, path: 'appointments/:id' },
-          { element: <MotorcyclesPage />, path: 'motorcycles' },
-          { element: <NotificationsPage />, path: 'notifications' },
+          { element: <ServiceHistoryPage />, path: 'history' },
+          { element: <BillingPage />, path: 'billing' },
           { element: <ServicesPage />, path: 'services' },
-          { element: <AccountPage />, path: 'account' },
           {
             element: <AdminRoute />,
             children: [
               { element: <AdminDashboardPage />, path: 'admin' },
               { element: <AdminAppointmentsPage />, path: 'admin/agenda' },
               { element: <AdminUsersPage />, path: 'admin/users' },
+              { element: <AdminServicesPage />, path: 'admin/services' },
               { element: <WorkshopSettingsPage />, path: 'admin/settings' },
             ],
           },

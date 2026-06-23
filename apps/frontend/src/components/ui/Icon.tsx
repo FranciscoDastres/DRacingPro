@@ -8,16 +8,20 @@ export type IconName =
   | 'clock'
   | 'close'
   | 'edit'
+  | 'download'
   | 'history'
   | 'logout'
   | 'mail'
   | 'menu'
   | 'phone'
   | 'plus'
+  | 'receipt'
+  | 'search'
   | 'settings'
   | 'shield'
   | 'spark'
   | 'tool'
+  | 'trash'
   | 'user'
   | 'users'
   | 'wallet';
@@ -56,6 +60,12 @@ const paths: Record<IconName, ReactNode> = {
       <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" />
     </>
   ),
+  download: (
+    <>
+      <path d="M12 3v12M7 10l5 5 5-5" />
+      <path d="M5 20h14" />
+    </>
+  ),
   history: (
     <>
       <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
@@ -79,6 +89,18 @@ const paths: Record<IconName, ReactNode> = {
     <path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L20 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z" />
   ),
   plus: <path d="M12 5v14M5 12h14" />,
+  receipt: (
+    <>
+      <path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z" />
+      <path d="M9 8h6M9 12h6M9 16h3" />
+    </>
+  ),
+  search: (
+    <>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-4-4" />
+    </>
+  ),
   settings: (
     <>
       <circle cx="12" cy="12" r="3" />
@@ -96,6 +118,11 @@ const paths: Record<IconName, ReactNode> = {
   ),
   tool: (
     <path d="M14.5 6.5a4 4 0 0 0-5.3 5.3L3.5 17.5a2.1 2.1 0 0 0 3 3l5.7-5.7a4 4 0 0 0 5.3-5.3l-2.4 2.4-3-3 2.4-2.4Z" />
+  ),
+  trash: (
+    <>
+      <path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14M10 11v6M14 11v6" />
+    </>
   ),
   user: (
     <>

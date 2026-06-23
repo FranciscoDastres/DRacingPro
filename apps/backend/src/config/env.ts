@@ -19,7 +19,7 @@ const environmentSchema = z.object({
     .transform((value) => value === 'true'),
   DATABASE_URL: z
     .url()
-    .default('postgresql://dracing:dracing@localhost:5432/dracing'),
+    .default('postgresql://dracing:dracing@localhost:55432/dracing'),
   SESSION_SECRET: z
     .string()
     .min(32)

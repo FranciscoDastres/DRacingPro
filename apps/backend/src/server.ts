@@ -5,6 +5,7 @@ import { parseEnvironment } from './config/env.js';
 import { AdminService } from './modules/admin/application/admin-service.js';
 import { AppointmentService } from './modules/appointments/application/appointment-service.js';
 import { SessionService } from './modules/auth/application/session-service.js';
+import { CustomerService } from './modules/customer/application/customer-service.js';
 import { GoogleOidcClient } from './modules/auth/infrastructure/google-oidc.js';
 import { PrismaAuthRepository } from './modules/auth/infrastructure/prisma-auth-repository.js';
 import { PrismaMotorcycleRepository } from './modules/motorcycles/infrastructure/prisma-motorcycle-repository.js';
@@ -16,6 +17,7 @@ const database = createDatabaseClient(environment.DATABASE_URL);
 const sessions = new SessionService(new PrismaAuthRepository(database));
 const google = createGoogleClient();
 const appointmentService = new AppointmentService(database);
+const customerService = new CustomerService(database);
 const motorcycleRepository = new PrismaMotorcycleRepository(database);
 const app = await buildApp({
   admin: {
@@ -41,6 +43,11 @@ const app = await buildApp({
     await database.$queryRaw`SELECT 1`;
   },
   cookieSecret: environment.SESSION_SECRET,
+  customer: {
+    appOrigin: environment.APP_ORIGIN,
+    customer: customerService,
+    sessions,
+  },
   motorcycles: {
     appOrigin: environment.APP_ORIGIN,
     repository: motorcycleRepository,

@@ -26,6 +26,11 @@ Al terminar:
 | API        | <http://localhost:3001/api>    |
 | PostgreSQL | `localhost:55432` (vía Docker) |
 
+Si se levanta el stack completo con `docker compose up`, los puertos expuestos
+son `5176` para el frontend, `3300` para la API y `55432` para PostgreSQL. Esta
+separación permite ejecutar Compose sin interferir con `pnpm dev` ni con otros
+proyectos locales.
+
 `pnpm dev` ejecuta `dev:free-ports` (`fuser -k 5180/tcp 3001/tcp`) antes de
 arrancar. Esto evita el error `EADDRINUSE: address already in use` cuando quedó
 una instancia previa ocupando el puerto.
