@@ -1,4 +1,8 @@
-import { type CurrentUser, UpdateProfileSchema } from '@dracing/contracts';
+import {
+  AdminLoginSchema,
+  type CurrentUser,
+  UpdateProfileSchema,
+} from '@dracing/contracts';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 
@@ -44,7 +48,7 @@ export const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (
       // No Google credentials in local dev: sign in as a developer user
       // and continue to the requested page so the app is usable offline.
       if (options.allowDevLogin) {
-        const session = await options.sessions.loginAsDeveloper('customer', {
+        const session = await options.sessions.loginAsDeveloper({
           ipAddress: request.ip,
           userAgent: request.headers['user-agent'],
         });
@@ -107,25 +111,47 @@ export const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (
     }
   });
 
+  app.post(
+    '/login',
+    { config: { rateLimit: { max: 5, timeWindow: '1 minute' } } },
+    async (request, reply) => {
+      if (!hasTrustedOrigin(request, options.appOrigin)) {
+        return reply.status(403).send({ error: 'invalid_origin' });
+      }
+      const input = AdminLoginSchema.safeParse(request.body);
+      if (!input.success) {
+        return reply.status(400).send({ error: 'validation_error' });
+      }
+
+      const session = await options.sessions.loginAsAdmin(
+        input.data.email,
+        input.data.password,
+        {
+          ipAddress: request.ip,
+          userAgent: request.headers['user-agent'],
+        },
+      );
+      if (!session) {
+        return reply.status(401).send({ error: 'invalid_credentials' });
+      }
+
+      setSessionCookie(
+        reply,
+        session.token,
+        session.expiresAt,
+        options.secureCookies,
+      );
+      const response: CurrentUser = session.user;
+      return reply.send(response);
+    },
+  );
+
   app.post('/dev-login', async (request, reply) => {
     if (!options.allowDevLogin) {
       return reply.status(404).send({ error: 'not_found' });
     }
 
-    const body = z
-      .object({
-        email: z.string().optional(),
-        role: z.enum(['customer', 'admin']).optional(),
-      })
-      .safeParse(request.body);
-    const data = body.success ? body.data : {};
-    const role =
-      data.role ??
-      (data.email && options.sessions.isAdminEmail(data.email)
-        ? 'admin'
-        : 'customer');
-
-    const session = await options.sessions.loginAsDeveloper(role, {
+    const session = await options.sessions.loginAsDeveloper({
       ipAddress: request.ip,
       userAgent: request.headers['user-agent'],
     });
