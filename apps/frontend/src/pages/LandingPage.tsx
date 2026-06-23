@@ -289,8 +289,8 @@ export function LandingPage() {
             <a className="landing-nav-link" href="#clientes">
               Clientes
             </a>
-            <a className="landing-nav-link" href="#como-llegar">
-              Cómo llegar
+            <a className="landing-nav-link" href="#nosotros">
+              Acerca de nosotros
             </a>
           </nav>
 
@@ -577,6 +577,30 @@ export function LandingPage() {
                   </figcaption>
                 </figure>
               ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="bg-[#0a0a0a]" id="nosotros">
+          <div className="mx-auto max-w-7xl px-5 py-20 sm:px-6 sm:py-24 lg:px-10">
+            <div className="max-w-3xl">
+              <p className="text-primary text-xs font-semibold tracking-[0.2em] uppercase">
+                Acerca de nosotros
+              </p>
+              <h2 className="mt-4 text-3xl leading-tight sm:text-5xl">
+                Especialistas en tu Honda NAVI
+              </h2>
+              <p className="mt-6 text-lg leading-8 text-[#c9c9c9]">
+                Somos un taller dedicado al servicio técnico de motocicletas
+                Honda NAVI. Trabajamos con atención cercana y precios claros: te
+                explicamos qué necesita tu moto, cuánto demora y cuánto cuesta
+                antes de empezar.
+              </p>
+              <p className="text-muted mt-4 leading-8">
+                Estamos partiendo, y por eso cada cliente importa: cuidamos tu
+                NAVI como si fuera nuestra y te mantenemos informado en cada
+                paso.
+              </p>
             </div>
           </div>
         </section>
