@@ -145,11 +145,57 @@ function Icon({ name }: { name: IconName }) {
   );
 }
 
+// Hero carousel slides. They share one NAVI photo with a different color filter
+// per slide (so the bike shows in distinct colors). Swap `image` per slide for
+// real photos in /images when available.
+const HERO_IMAGE = '/images/navi-service-hero.webp';
+const heroSlides: Array<{
+  eyebrow: string;
+  filter: string;
+  image: string;
+  position: string;
+  subtitle: string;
+  titleAccent: string;
+  titleTop: string;
+}> = [
+  {
+    eyebrow: 'Especialistas en Honda NAVI',
+    filter: 'none',
+    image: HERO_IMAGE,
+    position: '62% center',
+    subtitle:
+      'Agenda mantenciones, sigue cada avance y conserva el historial completo de tu moto en un solo lugar.',
+    titleAccent: 'volver a rodar.',
+    titleTop: 'Tu NAVI lista para',
+  },
+  {
+    eyebrow: 'Servicio experto',
+    filter: 'hue-rotate(135deg) saturate(1.3)',
+    image: HERO_IMAGE,
+    position: '45% center',
+    subtitle:
+      'Mantención y diagnóstico con precio claro, para que tu NAVI nunca se detenga.',
+    titleAccent: 'menos preocupaciones.',
+    titleTop: 'Más kilómetros,',
+  },
+  {
+    eyebrow: 'Lo divertido de la ciudad',
+    filter: 'hue-rotate(255deg) saturate(1.25)',
+    image: HERO_IMAGE,
+    position: '78% center',
+    subtitle:
+      'Reserva online en un minuto y vuelve a la calle con tu NAVI a punto.',
+    titleAccent: 'súbete a tu NAVI.',
+    titleTop: 'La ciudad es tuya,',
+  },
+];
+
 export function LandingPage() {
   const [apiState, setApiState] = useState<ApiState>('checking');
   const [menuOpen, setMenuOpen] = useState(false);
   const [bookingOpen, setBookingOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
+  const [heroSlide, setHeroSlide] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -186,6 +232,20 @@ export function LandingPage() {
     };
   }, [menuOpen]);
 
+  useEffect(() => {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      setHeroSlide((current) => (current + 1) % heroSlides.length);
+    }, 6000);
+    return () => window.clearInterval(timer);
+  }, [heroSlide]);
+
+  const goToSlide = (index: number) =>
+    setHeroSlide((index + heroSlides.length) % heroSlides.length);
+  const currentHeroSlide = heroSlides[heroSlide]!;
+
   const systemLabel =
     apiState === 'online'
       ? 'Sistema operativo'
@@ -216,20 +276,7 @@ export function LandingPage() {
       <header className="sticky top-0 z-50 border-b border-white/10 bg-[#090909]/95 backdrop-blur-xl">
         <TopBar onMenuClick={() => setMenuOpen(true)} />
 
-        <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-10">
-          <a
-            className="group flex items-center gap-3"
-            href="#top"
-            aria-label="D Racing Pro"
-          >
-            <span className="bg-primary font-display grid size-10 -skew-x-6 place-items-center text-xs font-extrabold tracking-tight text-white shadow-[0_0_24px_rgba(230,0,35,0.28)] transition-transform group-hover:skew-x-0">
-              <span className="skew-x-6 group-hover:skew-x-0">DR</span>
-            </span>
-            <span className="font-display text-[13px] font-bold tracking-[0.12em] uppercase sm:text-sm">
-              D Racing <span className="text-primary">Pro</span>
-            </span>
-          </a>
-
+        <div className="flex h-[72px] items-center px-5 sm:px-8 lg:px-12">
           <nav
             aria-label="Navegación de portada"
             className="hidden items-center gap-7 lg:flex"
@@ -245,7 +292,7 @@ export function LandingPage() {
             </a>
           </nav>
 
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="ml-auto flex items-center gap-3 sm:gap-4">
             <span
               className="hidden items-center gap-2 text-xs text-[#b8b8b8] md:flex"
               role="status"
@@ -329,24 +376,66 @@ export function LandingPage() {
       </div>
 
       <main id="top">
-        <section className="landing-hero relative isolate min-h-[calc(100svh-108px)] overflow-hidden">
-          <div className="landing-hero-image absolute inset-0 -z-20" />
+        <section
+          aria-label="Destacados"
+          aria-roledescription="carrusel"
+          className="landing-hero relative isolate min-h-[calc(100svh-108px)] overflow-hidden"
+        >
+          {heroSlides.map((slide, index) => (
+            <div
+              aria-hidden="true"
+              className={`absolute inset-0 -z-20 bg-cover bg-no-repeat transition-opacity duration-700 ${
+                index === heroSlide ? 'opacity-100' : 'opacity-0'
+              }`}
+              key={index}
+              style={{
+                backgroundColor: '#171717',
+                backgroundImage: `url('${slide.image}')`,
+                backgroundPosition: slide.position,
+                filter: slide.filter,
+              }}
+            />
+          ))}
           <div className="landing-hero-overlay absolute inset-0 -z-10" />
           <div className="absolute inset-y-0 left-0 -z-10 hidden w-2/3 bg-[linear-gradient(105deg,rgba(0,0,0,.7),transparent)] lg:block" />
 
-          <div className="mx-auto flex min-h-[calc(100svh-108px)] max-w-7xl items-end px-5 pt-20 pb-16 sm:px-6 sm:pb-20 lg:items-center lg:px-10 lg:py-24">
+          <div className="bg-primary absolute top-6 right-6 z-10 hidden rounded-md px-3 py-2 shadow-lg sm:block">
+            <span className="font-display text-sm font-black tracking-[0.18em] text-white">
+              HONDA
+            </span>
+          </div>
+
+          <button
+            aria-label="Imagen anterior"
+            className="absolute top-1/2 left-3 z-10 grid size-11 -translate-y-1/2 place-items-center rounded-full border border-white/30 bg-black/30 text-2xl leading-none text-white backdrop-blur transition hover:border-white hover:bg-black/55 sm:left-6"
+            onClick={() => goToSlide(heroSlide - 1)}
+            type="button"
+          >
+            ‹
+          </button>
+          <button
+            aria-label="Imagen siguiente"
+            className="absolute top-1/2 right-3 z-10 grid size-11 -translate-y-1/2 place-items-center rounded-full border border-white/30 bg-black/30 text-2xl leading-none text-white backdrop-blur transition hover:border-white hover:bg-black/55 sm:right-6"
+            onClick={() => goToSlide(heroSlide + 1)}
+            type="button"
+          >
+            ›
+          </button>
+
+          <div className="mx-auto flex min-h-[calc(100svh-108px)] max-w-7xl items-end px-5 pt-20 pb-20 sm:px-6 lg:items-center lg:px-10 lg:py-24">
             <div className="max-w-3xl">
               <p className="text-primary mb-5 flex items-center gap-3 text-[11px] font-semibold tracking-[0.22em] uppercase sm:text-xs">
                 <span className="bg-primary h-0.5 w-10" />
-                Especialistas en Honda Navi
+                {currentHeroSlide.eyebrow}
               </p>
               <h1 className="max-w-3xl text-[clamp(2.9rem,8vw,6.6rem)] leading-[0.9] font-extrabold tracking-[-0.045em] text-[#f4f4f4]">
-                Tu Navi lista para
-                <span className="text-primary block">volver a rodar.</span>
+                {currentHeroSlide.titleTop}
+                <span className="text-primary block">
+                  {currentHeroSlide.titleAccent}
+                </span>
               </h1>
               <p className="mt-7 max-w-xl text-base leading-7 text-[#c9c9c9] sm:text-lg sm:leading-8">
-                Agenda mantenciones, sigue cada avance y conserva el historial
-                completo de tu moto en un solo lugar.
+                {currentHeroSlide.subtitle}
               </p>
 
               <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -372,6 +461,23 @@ export function LandingPage() {
                 ))}
               </div>
             </div>
+          </div>
+
+          <div className="absolute right-6 bottom-6 z-10 flex gap-2">
+            {heroSlides.map((slide, index) => (
+              <button
+                aria-current={index === heroSlide}
+                aria-label={`Ir a la imagen ${index + 1}`}
+                className={`h-2 rounded-full transition-all ${
+                  index === heroSlide
+                    ? 'bg-primary w-6'
+                    : 'w-2 bg-white/50 hover:bg-white'
+                }`}
+                key={slide.position}
+                onClick={() => goToSlide(index)}
+                type="button"
+              />
+            ))}
           </div>
         </section>
 
