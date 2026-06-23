@@ -1,8 +1,6 @@
-import { type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
 import { CONTACT, whatsappLink } from '../../config/contact';
-import { FacebookIcon, InstagramIcon } from './social-icons';
 
 const legalLinks = [
   { label: 'Bases legales', to: '/legal/bases-legales' },
@@ -17,10 +15,7 @@ const legalLinks = [
  */
 export function Footer() {
   return (
-    <footer
-      className="border-t border-white/10 bg-[#0a0a0a] text-[#8f8f8f]"
-      id="como-llegar"
-    >
+    <footer className="border-t border-white/10 bg-[#0a0a0a] text-[#8f8f8f]">
       <div className="mx-auto max-w-7xl px-5 py-14 sm:px-6 lg:px-10">
         <div className="flex flex-col items-center gap-6 text-center">
           <a
@@ -78,58 +73,12 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-10 flex flex-col items-center gap-4 border-t border-white/10 pt-8 text-center text-xs sm:flex-row sm:justify-between sm:text-left">
-          <div>
-            <p>
-              {CONTACT.address.street} · {CONTACT.address.area}
-            </p>
-            <a
-              className="text-primary mt-1 inline-block transition hover:underline"
-              href={CONTACT.mapsUrl}
-              rel="noreferrer"
-              target="_blank"
-            >
-              Ver en Google Maps →
-            </a>
-          </div>
-          <div className="flex gap-2">
-            <SocialLink href={CONTACT.social.facebook} label="Facebook">
-              <FacebookIcon />
-            </SocialLink>
-            <SocialLink href={CONTACT.social.instagram} label="Instagram">
-              <InstagramIcon />
-            </SocialLink>
-          </div>
-        </div>
-
-        <p className="mt-8 text-center text-[11px] text-[#6a6a6a]">
+        <p className="mt-12 border-t border-white/10 pt-8 text-center text-[11px] text-[#6a6a6a]">
           © {new Date().getFullYear()} D Racing Pro · Servicio técnico Honda
           NAVI · Santiago, Chile.
         </p>
       </div>
     </footer>
-  );
-}
-
-function SocialLink({
-  children,
-  href,
-  label,
-}: {
-  children: ReactNode;
-  href: string;
-  label: string;
-}) {
-  return (
-    <a
-      aria-label={`Síguenos en ${label}`}
-      className="hover:text-foreground grid size-9 place-items-center rounded-full border border-white/10 text-[#bdbdbd] transition hover:border-white/30"
-      href={href}
-      rel="noreferrer"
-      target="_blank"
-    >
-      {children}
-    </a>
   );
 }
 
