@@ -63,3 +63,29 @@ de base de datos ensayada.
 4. Crear/cancelar cita con control de concurrencia.
 5. Operación admin y timeline.
 6. Notificaciones y refinamiento visual.
+
+## Estado actual y plan de avance (junio 2026)
+
+Las plataformas de cliente y administrador están construidas y operativas con un
+acceso de desarrollo. El landing fue rediseñado (TopBar, hero con carrusel,
+testimonios, footer informativo y páginas legales). Se endureció la seguridad del
+backend (helmet, rate-limit) y se optimizó el bundle (code-splitting). Próximos
+hitos, en orden de prioridad:
+
+1. **Autenticación real con Google (en curso).** El flujo OAuth (PKCE, nonce,
+   state, sesiones) está implementado; falta configurar credenciales reales
+   (`GOOGLE_*` en `.env`), registrar la URI de redirección en Google Cloud y
+   verificar el flujo de punta a punta. La promoción a administrador por
+   `ADMIN_EMAILS` ya está lista. El acceso de desarrollo queda deshabilitado en
+   producción (`NODE_ENV`).
+2. **Plataforma del cliente.** Pulir estados vacíos, carga, errores, responsive y
+   accesibilidad en dashboard, reserva, motos, timeline y novedades; onboarding.
+3. **Intranet de administrador.** Panel-resumen con métricas (citas del día,
+   próximas, por estado) y gestión de clientes/motos desde el admin.
+4. **Calidad.** Pruebas E2E durables (Playwright) para login, reserva y operación
+   admin; cerrar cobertura.
+5. **DevOps / despliegue.** Secretos de producción, pipeline de deploy (frontend,
+   API, migraciones), dominio, HTTPS, observabilidad. La protección de la rama
+   `main` ya está configurada.
+6. **Contenido y legal.** Completar razón social, RUT y correo reales; fotos NAVI
+   y logo definitivos.
