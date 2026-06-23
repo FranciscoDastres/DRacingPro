@@ -1,11 +1,12 @@
 import {
   AdminMetricsFiltersSchema,
+  CreateAdminUserSchema,
   UpdateUserSchema,
 } from '@dracing/contracts';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 
-import type { AdminService} from '../application/admin-service.js';
+import type { AdminService } from '../application/admin-service.js';
 import { AdminUserError } from '../application/admin-service.js';
 import type { SessionService } from '../../auth/application/session-service.js';
 import {
@@ -20,7 +21,10 @@ const metricsQuerySchema = z.object({
 });
 
 export interface AdminRoutesOptions {
-  admin: Pick<AdminService, 'getMetrics' | 'listUsers' | 'updateUser'>;
+  admin: Pick<
+    AdminService,
+    'createUser' | 'deleteUser' | 'getMetrics' | 'listUsers' | 'updateUser'
+  >;
   appOrigin: string;
   sessions: SessionService;
 }
@@ -32,6 +36,20 @@ export const adminRoutes: FastifyPluginAsync<AdminRoutesOptions> = async (
   app.get('/users', async (request, reply) => {
     if (!(await requireAdmin(request, reply, options.sessions))) return;
     return reply.send(await options.admin.listUsers());
+  });
+
+  app.post('/users', async (request, reply) => {
+    const admin = await requireMutationAdmin(request, reply, options);
+    if (!admin) return;
+    const input = CreateAdminUserSchema.safeParse(request.body);
+    if (!input.success) {
+      return reply.status(400).send({ error: 'validation_error' });
+    }
+    try {
+      return reply.status(201).send(await options.admin.createUser(input.data));
+    } catch (error) {
+      return handleAdminUserError(error, reply);
+    }
   });
 
   app.patch('/users/:id', async (request, reply) => {
@@ -47,11 +65,22 @@ export const adminRoutes: FastifyPluginAsync<AdminRoutesOptions> = async (
         await options.admin.updateUser(admin.id, params.data.id, input.data),
       );
     } catch (error) {
-      if (error instanceof AdminUserError) {
-        const status = error.message === 'user_not_found' ? 404 : 409;
-        return reply.status(status).send({ error: error.message });
-      }
-      throw error;
+      return handleAdminUserError(error, reply);
+    }
+  });
+
+  app.delete('/users/:id', async (request, reply) => {
+    const admin = await requireMutationAdmin(request, reply, options);
+    if (!admin) return;
+    const params = idParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ error: 'validation_error' });
+    }
+    try {
+      await options.admin.deleteUser(admin.id, params.data.id);
+      return reply.status(204).send();
+    } catch (error) {
+      return handleAdminUserError(error, reply);
     }
   });
 
@@ -68,6 +97,14 @@ export const adminRoutes: FastifyPluginAsync<AdminRoutesOptions> = async (
     return reply.send(await options.admin.getMetrics(filters.data));
   });
 };
+
+function handleAdminUserError(error: unknown, reply: FastifyReply) {
+  if (error instanceof AdminUserError) {
+    const status = error.message === 'user_not_found' ? 404 : 409;
+    return reply.status(status).send({ error: error.message });
+  }
+  throw error;
+}
 
 async function requireAdmin(
   request: FastifyRequest,

@@ -1,40 +1,27 @@
-import type {
-  AdminAppointment,
-  Appointment,
-  CreateMotorcycleStatusUpdateInput,
-  ServiceBay,
-} from '@dracing/contracts';
+import type { AdminAppointment, Appointment } from '@dracing/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
+import { Badge } from '../../components/ui/Badge';
+import { Button } from '../../components/ui/Button';
+import { Card } from '../../components/ui/Card';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { Icon } from '../../components/ui/Icon';
+import { PageHeader } from '../../components/ui/PageHeader';
 import { apiClient } from '../../lib/api-client';
 
 const dateFormatter = new Intl.DateTimeFormat('es-CL', {
   dateStyle: 'medium',
+  hourCycle: 'h23',
   timeStyle: 'short',
+  timeZone: 'America/Santiago',
 });
-
-const statusLabels: Record<Appointment['status'], string> = {
-  cancelled: 'Cancelada',
-  checked_in: 'Moto recibida',
-  completed: 'Completada',
-  confirmed: 'Confirmada',
-  in_service: 'En servicio',
-  no_show: 'No asistió',
-  ready: 'Lista para retiro',
-  requested: 'Solicitada',
-};
-
-const nextStatuses: Record<Appointment['status'], Appointment['status'][]> = {
-  cancelled: [],
-  checked_in: ['in_service', 'cancelled'],
-  completed: [],
-  confirmed: ['checked_in', 'cancelled', 'no_show'],
-  in_service: ['ready'],
-  no_show: [],
-  ready: ['completed'],
-  requested: ['confirmed', 'cancelled'],
-};
+const timeFormatter = new Intl.DateTimeFormat('es-CL', {
+  hour: '2-digit',
+  hourCycle: 'h23',
+  minute: '2-digit',
+  timeZone: 'America/Santiago',
+});
 
 type AgendaView = 'day' | 'week';
 
@@ -42,16 +29,6 @@ export function AdminAppointmentsPage() {
   const queryClient = useQueryClient();
   const [agendaView, setAgendaView] = useState<AgendaView>('day');
   const [selectedDate, setSelectedDate] = useState(getWorkshopToday());
-  const [updatingAppointmentId, setUpdatingAppointmentId] = useState<
-    string | null
-  >(null);
-  const [reassigningAppointmentId, setReassigningAppointmentId] = useState<
-    string | null
-  >(null);
-  const [selectedServiceBayId, setSelectedServiceBayId] = useState('');
-  const [progressStatus, setProgressStatus] =
-    useState<CreateMotorcycleStatusUpdateInput['progressStatus']>('diagnosing');
-  const [message, setMessage] = useState('');
   const range = getAgendaRange(selectedDate, agendaView);
 
   const appointments = useQuery({
@@ -61,97 +38,56 @@ export function AdminAppointmentsPage() {
       ),
     queryKey: ['admin', 'appointments', range.from, range.to],
   });
-  const serviceBays = useQuery({
-    queryFn: () => apiClient.get<ServiceBay[]>('/v1/admin/service-bays'),
-    queryKey: ['admin', 'service-bays'],
-    staleTime: 5 * 60_000,
-  });
   const statusMutation = useMutation({
     mutationFn: ({
       id,
       status,
     }: {
       id: string;
-      status: Appointment['status'];
+      status: 'confirmed' | 'cancelled';
     }) =>
       apiClient.patch<Appointment>(`/v1/admin/appointments/${id}/status`, {
         status,
       }),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ['admin', 'appointments'] }),
-  });
-  const progressMutation = useMutation({
-    mutationFn: (appointmentId: string) =>
-      apiClient.post(
-        `/v1/admin/appointments/${appointmentId}/motorcycle-updates`,
-        {
-          customerVisible: true,
-          message: message || undefined,
-          progressStatus,
-        },
-      ),
-    onSuccess: () => {
-      setMessage('');
-      setUpdatingAppointmentId(null);
-    },
-  });
-  const reassignMutation = useMutation({
-    mutationFn: ({
-      appointmentId,
-      serviceBayId,
-    }: {
-      appointmentId: string;
-      serviceBayId: string;
-    }) =>
-      apiClient.patch<AdminAppointment>(
-        `/v1/admin/appointments/${appointmentId}/service-bay`,
-        { serviceBayId },
-      ),
     onSuccess: async () => {
-      setReassigningAppointmentId(null);
-      setSelectedServiceBayId('');
-      await queryClient.invalidateQueries({
-        queryKey: ['admin', 'appointments'],
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['admin', 'appointments'] }),
+        queryClient.invalidateQueries({ queryKey: ['admin', 'metrics'] }),
+        queryClient.invalidateQueries({
+          queryKey: ['admin', 'pending-requests'],
+        }),
+      ]);
     },
   });
 
   return (
     <div>
-      <p className="text-primary text-sm font-semibold">Administración</p>
-      <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black tracking-tight">
-            Agenda del taller
-          </h1>
-          <p className="text-muted mt-3">
-            Confirma citas y mantén al cliente informado del trabajo.
-          </p>
-        </div>
-        <span className="bg-accent/10 text-accent rounded-full px-4 py-2 text-sm font-semibold">
-          {appointments.data?.length ?? 0}{' '}
-          {appointments.data?.length === 1 ? 'cita' : 'citas'}
-        </span>
-      </div>
+      <PageHeader
+        actions={
+          <Badge tone="primary">
+            {appointments.data?.length ?? 0}{' '}
+            {appointments.data?.length === 1 ? 'cita' : 'citas'}
+          </Badge>
+        }
+        eyebrow="Administración"
+        subtitle="Confirma o cancela reservas y contacta al cliente directamente."
+        title="Agenda del taller"
+      />
 
       <section
         aria-label="Controles de agenda"
-        className="bg-surface mt-8 rounded-2xl border border-white/10 p-4 sm:p-5"
+        className="bg-surface mb-5 rounded-2xl border border-white/8 p-3 sm:p-4"
       >
-        <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div
             aria-label="Vista de agenda"
-            className="bg-background flex rounded-lg border border-white/10 p-1"
+            className="bg-background flex rounded-lg border border-white/8 p-1"
             role="group"
           >
             {(['day', 'week'] as const).map((view) => (
               <button
                 aria-pressed={agendaView === view}
-                className={`rounded-md px-4 py-2 text-xs font-bold transition ${
-                  agendaView === view
-                    ? 'bg-accent text-background'
-                    : 'text-muted hover:text-foreground'
-                }`}
+                className={`rounded-md px-4 py-2 text-xs font-bold transition ${agendaView === view ? 'bg-primary text-white' : 'text-muted hover:text-foreground'}`}
                 key={view}
                 onClick={() => setAgendaView(view)}
                 type="button"
@@ -160,22 +96,21 @@ export function AdminAppointmentsPage() {
               </button>
             ))}
           </div>
-
           <div className="flex flex-wrap items-center gap-2">
-            <button
+            <Button
               aria-label={
                 agendaView === 'day' ? 'Día anterior' : 'Semana anterior'
               }
-              className="text-muted hover:text-foreground rounded-lg border border-white/10 px-3 py-2 text-sm"
               onClick={() =>
                 setSelectedDate((current) =>
                   addDays(current, agendaView === 'day' ? -1 : -7),
                 )
               }
-              type="button"
+              size="sm"
+              variant="ghost"
             >
               ←
-            </button>
+            </Button>
             <input
               aria-label="Fecha de agenda"
               className="bg-background focus:border-accent rounded-lg border border-white/10 px-3 py-2 text-sm outline-none"
@@ -183,256 +118,179 @@ export function AdminAppointmentsPage() {
               type="date"
               value={selectedDate}
             />
-            <button
+            <Button
               aria-label={
                 agendaView === 'day' ? 'Día siguiente' : 'Semana siguiente'
               }
-              className="text-muted hover:text-foreground rounded-lg border border-white/10 px-3 py-2 text-sm"
               onClick={() =>
                 setSelectedDate((current) =>
                   addDays(current, agendaView === 'day' ? 1 : 7),
                 )
               }
-              type="button"
+              size="sm"
+              variant="ghost"
             >
               →
-            </button>
-            <button
-              className="text-accent hover:bg-accent/10 rounded-lg px-3 py-2 text-xs font-bold"
+            </Button>
+            <Button
               onClick={() => setSelectedDate(getWorkshopToday())}
-              type="button"
+              size="sm"
+              variant="secondary"
             >
               Hoy
-            </button>
+            </Button>
           </div>
         </div>
-        <p className="mt-4 text-sm font-semibold">
+        <p className="text-muted mt-3 text-xs font-semibold capitalize">
           {formatAgendaRange(range, agendaView)}
         </p>
       </section>
 
       {appointments.isError && (
-        <p className="border-primary/30 bg-primary/10 mt-8 rounded-xl border p-4 text-sm">
-          No fue posible cargar la agenda administrativa.
+        <p className="border-primary/30 bg-primary/10 rounded-xl border p-4 text-sm">
+          No fue posible cargar la agenda.
         </p>
       )}
+      {appointments.isLoading && (
+        <div className="bg-surface h-64 animate-pulse rounded-2xl border border-white/8" />
+      )}
+      {!appointments.isLoading && appointments.data?.length === 0 && (
+        <EmptyState
+          icon="calendar"
+          title="No hay citas en este periodo"
+          description="Cambia la fecha o selecciona la vista semanal."
+        />
+      )}
 
-      <div className="mt-8 space-y-4">
-        {appointments.isLoading && (
-          <p className="text-muted animate-pulse text-sm">Cargando agenda…</p>
-        )}
-        {!appointments.isLoading && appointments.data?.length === 0 && (
-          <div className="bg-surface rounded-2xl border border-dashed border-white/10 p-8 text-center">
-            <h2 className="font-bold">No hay citas en este periodo</h2>
-            <p className="text-muted mt-2 text-sm">
-              Cambia la fecha o selecciona otra vista para revisar la agenda.
-            </p>
-          </div>
-        )}
-        {appointments.data?.map((appointment) => (
-          <article
-            className="bg-surface rounded-2xl border border-white/10 p-6"
-            key={appointment.id}
-          >
-            <div className="flex flex-wrap items-start justify-between gap-5">
-              <div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <h2 className="text-xl font-bold">
-                    {appointment.motorcycle.label}
-                  </h2>
-                  <span className="text-accent rounded-full bg-white/5 px-3 py-1 text-xs font-semibold">
-                    {statusLabels[appointment.status]}
+      <div className="space-y-3">
+        {appointments.data?.map((appointment) => {
+          const cancelled = ['cancelled', 'no_show'].includes(
+            appointment.status,
+          );
+          const requested = appointment.status === 'requested';
+          return (
+            <Card className="overflow-hidden" key={appointment.id}>
+              <div className="flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-center">
+                <div className="flex min-w-[150px] items-center gap-3 lg:w-48">
+                  <span className="bg-primary/10 text-primary grid size-10 shrink-0 place-items-center rounded-xl">
+                    <Icon className="size-5" name="calendar" />
                   </span>
+                  <div>
+                    <p className="font-semibold tabular-nums">
+                      {timeFormatter.format(new Date(appointment.startsAt))}
+                    </p>
+                    <p className="text-muted mt-0.5 text-xs">
+                      hasta {timeFormatter.format(new Date(appointment.endsAt))}
+                    </p>
+                  </div>
                 </div>
-                <p className="text-muted mt-2 text-sm">
-                  {appointment.customer.displayName} ·{' '}
-                  {appointment.customer.email}
-                </p>
-                <p className="mt-3 text-sm font-semibold">
-                  {appointment.services
-                    .map((service) => service.name)
-                    .join(', ')}
-                </p>
-                <p className="text-muted mt-2 text-xs">
-                  Bahía asignada: {appointment.serviceBay.name}
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="font-semibold">
-                  {dateFormatter.format(new Date(appointment.startsAt))}
-                </p>
-                <p className="text-muted mt-1 text-xs">
-                  hasta{' '}
-                  {new Date(appointment.endsAt).toLocaleTimeString('es-CL', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </p>
-              </div>
-            </div>
 
-            {(nextStatuses[appointment.status].length > 0 ||
-              canPublishProgress(appointment.status) ||
-              canReassignServiceBay(appointment.status)) && (
-              <div className="mt-6 flex flex-wrap gap-2 border-t border-white/10 pt-5">
-                {nextStatuses[appointment.status].map((status) => (
-                  <button
-                    aria-label={`${statusLabels[status]} para ${appointment.motorcycle.label}`}
-                    className={`rounded-lg px-4 py-2 text-xs font-bold transition disabled:opacity-50 ${
-                      status === 'cancelled' || status === 'no_show'
-                        ? 'border-primary/30 text-primary hover:bg-primary/10 border'
-                        : 'bg-accent text-background hover:brightness-110'
-                    }`}
-                    disabled={statusMutation.isPending}
-                    key={status}
-                    onClick={() =>
-                      statusMutation.mutate({ id: appointment.id, status })
-                    }
-                    type="button"
-                  >
-                    {statusLabels[status]}
-                  </button>
-                ))}
-                {canPublishProgress(appointment.status) && (
-                  <button
-                    aria-label={`Editar avance de ${appointment.motorcycle.label}`}
-                    className="text-muted hover:text-foreground rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold"
-                    onClick={() =>
-                      setUpdatingAppointmentId((current) =>
-                        current === appointment.id ? null : appointment.id,
-                      )
-                    }
-                    type="button"
-                  >
-                    Publicar avance
-                  </button>
-                )}
-                {canReassignServiceBay(appointment.status) && (
-                  <button
-                    aria-label={`Reasignar bahía de ${appointment.motorcycle.label}`}
-                    className="text-muted hover:text-foreground rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold"
-                    onClick={() => {
-                      reassignMutation.reset();
-                      setSelectedServiceBayId(appointment.serviceBay.id);
-                      setReassigningAppointmentId((current) =>
-                        current === appointment.id ? null : appointment.id,
-                      );
-                    }}
-                    type="button"
-                  >
-                    Reasignar bahía
-                  </button>
-                )}
-              </div>
-            )}
-
-            {reassigningAppointmentId === appointment.id && (
-              <div className="bg-background mt-5 rounded-xl p-4">
-                <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto]">
-                  <select
-                    aria-label={`Nueva bahía para ${appointment.motorcycle.label}`}
-                    className="bg-surface focus:border-accent rounded-lg border border-white/10 px-3 py-2 text-sm outline-none"
-                    onChange={(event) =>
-                      setSelectedServiceBayId(event.target.value)
-                    }
-                    value={selectedServiceBayId}
-                  >
-                    {serviceBays.data?.map((serviceBay) => (
-                      <option key={serviceBay.id} value={serviceBay.id}>
-                        {serviceBay.name}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    className="bg-accent text-background rounded-lg px-4 py-2 text-xs font-bold disabled:opacity-40"
-                    disabled={
-                      !selectedServiceBayId ||
-                      selectedServiceBayId === appointment.serviceBay.id ||
-                      reassignMutation.isPending
-                    }
-                    onClick={() =>
-                      reassignMutation.mutate({
-                        appointmentId: appointment.id,
-                        serviceBayId: selectedServiceBayId,
-                      })
-                    }
-                    type="button"
-                  >
-                    {reassignMutation.isPending
-                      ? 'Reasignando…'
-                      : 'Guardar bahía'}
-                  </button>
-                  <button
-                    className="text-muted hover:text-foreground rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold"
-                    disabled={reassignMutation.isPending}
-                    onClick={() => {
-                      reassignMutation.reset();
-                      setReassigningAppointmentId(null);
-                      setSelectedServiceBayId('');
-                    }}
-                    type="button"
-                  >
-                    Cerrar
-                  </button>
+                <div className="min-w-0 flex-1 border-white/8 lg:border-l lg:pl-5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="truncate text-base font-bold tracking-normal normal-case">
+                      {appointment.customer.displayName}
+                    </h2>
+                    <Badge
+                      tone={
+                        cancelled ? 'danger' : requested ? 'warning' : 'success'
+                      }
+                    >
+                      {cancelled
+                        ? 'Cancelada'
+                        : requested
+                          ? 'Por confirmar'
+                          : 'Confirmada'}
+                    </Badge>
+                  </div>
+                  <p className="text-muted mt-1 truncate text-xs">
+                    {appointment.services
+                      .map((service) => service.name)
+                      .join(', ')}
+                  </p>
+                  <p className="text-muted mt-1 text-xs">
+                    {dateFormatter.format(new Date(appointment.startsAt))}
+                  </p>
                 </div>
-                {serviceBays.isError && (
-                  <p className="text-primary mt-3 text-sm" role="alert">
-                    No fue posible cargar las bahías disponibles.
-                  </p>
-                )}
-                {reassignMutation.isError && (
-                  <p className="text-primary mt-3 text-sm" role="alert">
-                    La bahía seleccionada ya no está disponible para este
-                    horario.
-                  </p>
-                )}
-              </div>
-            )}
 
-            {updatingAppointmentId === appointment.id && (
-              <div className="bg-background mt-5 grid gap-3 rounded-xl p-4 sm:grid-cols-[200px_1fr_auto]">
-                <select
-                  aria-label={`Estado del avance de ${appointment.motorcycle.label}`}
-                  className="bg-surface rounded-lg border border-white/10 px-3 py-2 text-sm"
-                  onChange={(event) =>
-                    setProgressStatus(
-                      event.target
-                        .value as CreateMotorcycleStatusUpdateInput['progressStatus'],
-                    )
-                  }
-                  value={progressStatus}
-                >
-                  <option value="received">Moto recibida</option>
-                  <option value="diagnosing">En diagnóstico</option>
-                  <option value="waiting_approval">Esperando aprobación</option>
-                  <option value="repairing">En reparación</option>
-                  <option value="quality_check">Control de calidad</option>
-                  <option value="ready_for_pickup">Lista para retiro</option>
-                  <option value="delivered">Entregada</option>
-                </select>
-                <input
-                  aria-label={`Mensaje para el cliente sobre ${appointment.motorcycle.label}`}
-                  className="bg-surface focus:border-accent rounded-lg border border-white/10 px-3 py-2 text-sm outline-none"
-                  onChange={(event) => setMessage(event.target.value)}
-                  placeholder="Mensaje visible para el cliente"
-                  value={message}
-                />
-                <button
-                  aria-label={`Publicar avance de ${appointment.motorcycle.label}`}
-                  className="bg-primary rounded-lg px-4 py-2 text-xs font-bold text-white disabled:opacity-50"
-                  disabled={progressMutation.isPending}
-                  onClick={() => progressMutation.mutate(appointment.id)}
-                  type="button"
-                >
-                  Publicar
-                </button>
+                <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                  {appointment.customer.phone ? (
+                    <a
+                      className="inline-flex min-h-9 items-center justify-center gap-2 rounded-xl border border-emerald-400/25 bg-emerald-400/8 px-3.5 text-[0.7rem] font-semibold tracking-wide text-emerald-400 uppercase transition hover:bg-emerald-400/15"
+                      href={toWhatsAppUrl(
+                        appointment.customer.phone,
+                        appointment.customer.displayName,
+                        appointment.startsAt,
+                      )}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      <Icon className="size-4" name="phone" />
+                      WhatsApp
+                    </a>
+                  ) : (
+                    <span className="text-muted px-2 text-xs">
+                      Sin teléfono
+                    </span>
+                  )}
+                  {requested && (
+                    <Button
+                      disabled={statusMutation.isPending}
+                      icon="check"
+                      onClick={() =>
+                        statusMutation.mutate({
+                          id: appointment.id,
+                          status: 'confirmed',
+                        })
+                      }
+                      size="sm"
+                    >
+                      Confirmar
+                    </Button>
+                  )}
+                  {!cancelled && canCancel(appointment.status) && (
+                    <Button
+                      disabled={statusMutation.isPending}
+                      onClick={() =>
+                        statusMutation.mutate({
+                          id: appointment.id,
+                          status: 'cancelled',
+                        })
+                      }
+                      size="sm"
+                      variant="danger"
+                    >
+                      Cancelar
+                    </Button>
+                  )}
+                </div>
               </div>
-            )}
-          </article>
-        ))}
+            </Card>
+          );
+        })}
       </div>
+
+      {statusMutation.isError && (
+        <p className="mt-4 text-sm text-red-400" role="alert">
+          La cita cambió de estado y no pudo actualizarse. Recarga la agenda.
+        </p>
+      )}
     </div>
   );
+}
+
+function toWhatsAppUrl(
+  phone: string,
+  customerName: string,
+  startsAt: string,
+): string {
+  const rawDigits = phone.replace(/\D/g, '').replace(/^0+/, '');
+  const digits = rawDigits.length === 9 ? `56${rawDigits}` : rawDigits;
+  const message = `Hola ${customerName}, te contactamos de D Racing Pro por tu cita del ${dateFormatter.format(new Date(startsAt))}.`;
+  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+}
+
+function canCancel(status: Appointment['status']): boolean {
+  return ['requested', 'confirmed', 'checked_in'].includes(status);
 }
 
 function getWorkshopToday(): string {
@@ -468,22 +326,7 @@ function formatAgendaRange(
     dateStyle: view === 'day' ? 'full' : 'medium',
     timeZone: 'UTC',
   });
-  if (view === 'day') {
+  if (view === 'day')
     return formatter.format(new Date(`${range.from}T00:00:00.000Z`));
-  }
   return `${formatter.format(new Date(`${range.from}T00:00:00.000Z`))} – ${formatter.format(new Date(`${addDays(range.to, -1)}T00:00:00.000Z`))}`;
-}
-
-function canPublishProgress(status: Appointment['status']): boolean {
-  return !['cancelled', 'completed', 'no_show'].includes(status);
-}
-
-function canReassignServiceBay(status: Appointment['status']): boolean {
-  return [
-    'requested',
-    'confirmed',
-    'checked_in',
-    'in_service',
-    'ready',
-  ].includes(status);
 }

@@ -55,6 +55,7 @@ const adminAppointment: AdminAppointment = {
     displayName: testUser.displayName,
     email: testUser.email,
     id: testUser.id,
+    phone: '+56912345678',
   },
   serviceBay,
 };

@@ -160,6 +160,7 @@ export const AdminAppointmentSchema = AppointmentSchema.extend({
     displayName: z.string(),
     email: z.email(),
     id: z.uuid(),
+    phone: z.string().nullable(),
   }),
   serviceBay: ServiceBaySchema,
 });
@@ -344,12 +345,28 @@ export const AdminUserSchema = z.object({
 
 export type AdminUser = z.infer<typeof AdminUserSchema>;
 
+export const CreateAdminUserSchema = z.object({
+  displayName: z.string().trim().min(1).max(120),
+  email: z.email().trim().toLowerCase(),
+  phone: z
+    .string()
+    .trim()
+    .max(32)
+    .nullish()
+    .transform((value) => (value ? value : null)),
+});
+
+export type CreateAdminUserInput = z.infer<typeof CreateAdminUserSchema>;
+
 export const UpdateUserSchema = z
   .object({
+    displayName: z.string().trim().min(1).max(120).optional(),
+    email: z.email().trim().toLowerCase().optional(),
     isActive: z.boolean().optional(),
+    phone: z.string().trim().max(32).nullable().optional(),
   })
   .refine(
-    (value) => value.isActive !== undefined,
+    (value) => Object.values(value).some((item) => item !== undefined),
     'At least one field is required',
   );
 
@@ -359,6 +376,10 @@ export const AdminMetricsSchema = z.object({
   appointmentsByStatus: z.record(z.string(), z.number().int().nonnegative()),
   averageTicket: z.number().int().nonnegative(),
   completedCount: z.number().int().nonnegative(),
+  newUsersCount: z.number().int().nonnegative(),
+  newUsersByDay: z.array(
+    z.object({ date: z.iso.date(), total: z.number().int().nonnegative() }),
+  ),
   pendingRequests: z.number().int().nonnegative(),
   revenueByDay: z.array(
     z.object({ date: z.iso.date(), total: z.number().int().nonnegative() }),

@@ -5,7 +5,7 @@ import type {
   Service,
 } from '@dracing/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { Badge } from '../../components/ui/Badge';
@@ -48,7 +48,6 @@ const UPCOMING_STATUSES: Appointment['status'][] = [
 
 export function AppointmentsPage() {
   const queryClient = useQueryClient();
-  const [motorcycleId, setMotorcycleId] = useState('');
   const [serviceIds, setServiceIds] = useState<string[]>([]);
   const [date, setDate] = useState(getNextBookableDate());
   const [selectedSlot, setSelectedSlot] = useState('');
@@ -64,6 +63,22 @@ export function AppointmentsPage() {
     queryFn: () => apiClient.get<Motorcycle[]>('/v1/motorcycles'),
     queryKey: ['motorcycles'],
   });
+  const ensureMotorcycle = useMutation({
+    mutationFn: () => apiClient.post<Motorcycle>('/v1/motorcycles', {}),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ['motorcycles'] }),
+  });
+  const motorcycleId = motorcycles.data?.[0]?.id ?? '';
+
+  useEffect(() => {
+    if (
+      motorcycles.isSuccess &&
+      motorcycles.data.length === 0 &&
+      ensureMotorcycle.isIdle
+    ) {
+      ensureMotorcycle.mutate();
+    }
+  }, [ensureMotorcycle, motorcycles.data, motorcycles.isSuccess]);
   const services = useQuery({
     queryFn: () => apiClient.get<Service[]>('/v1/services'),
     queryKey: ['services'],
@@ -169,34 +184,13 @@ export function AppointmentsPage() {
         Reservar una cita
       </h1>
       <p className="text-muted mt-3">
-        Selecciona tu NAVI, los servicios y uno de los horarios disponibles.
+        Selecciona los servicios y uno de los horarios disponibles para tu NAVI.
       </p>
 
       <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-6">
           <section className="bg-surface rounded-2xl border border-white/10 p-6">
-            <h2 className="font-bold">1. Elige tu moto</h2>
-            <select
-              aria-label="Selecciona tu Honda NAVI"
-              className="bg-background focus:border-accent mt-4 w-full rounded-lg border border-white/10 px-3 py-3 text-sm outline-none"
-              onChange={(event) => setMotorcycleId(event.target.value)}
-              value={motorcycleId}
-            >
-              <option value="">Selecciona una Honda NAVI</option>
-              {motorcycles.data?.map((motorcycle) => (
-                <option key={motorcycle.id} value={motorcycle.id}>
-                  {motorcycle.nickname ??
-                    `${motorcycle.make} ${motorcycle.model}`}
-                  {motorcycle.licensePlate
-                    ? ` · ${motorcycle.licensePlate}`
-                    : ''}
-                </option>
-              ))}
-            </select>
-          </section>
-
-          <section className="bg-surface rounded-2xl border border-white/10 p-6">
-            <h2 className="font-bold">2. Selecciona servicios</h2>
+            <h2 className="font-bold">1. Selecciona servicios</h2>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {services.data?.map((service) => (
                 <label
@@ -226,7 +220,7 @@ export function AppointmentsPage() {
           <section className="bg-surface rounded-2xl border border-white/10 p-5 sm:p-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h2 className="font-bold">3. Fecha y horario</h2>
+                <h2 className="font-bold">2. Fecha y horario</h2>
                 <p className="text-muted mt-2 text-sm">
                   Selecciona un día y luego un bloque disponible de 45 minutos.
                 </p>
@@ -445,87 +439,87 @@ export function AppointmentsPage() {
                     Ver avance →
                   </Link>
                   {isCustomerCancellable(item) && (
-                  <button
-                    aria-controls={`cancel-appointment-${item.id}`}
-                    aria-expanded={cancellingAppointmentId === item.id}
-                    aria-label={`Cancelar cita de ${item.motorcycle.label}`}
-                    className="text-primary hover:text-danger mt-2 ml-4 text-xs font-semibold"
-                    onClick={() => {
-                      cancelAppointment.reset();
-                      setCancellationReason('');
-                      setCancellingAppointmentId(item.id);
-                    }}
-                    type="button"
-                  >
-                    Cancelar cita
-                  </button>
-                )}
-              </div>
-
-              {cancellingAppointmentId === item.id && (
-                <div
-                  className="bg-background basis-full rounded-xl border border-white/10 p-4 text-left"
-                  id={`cancel-appointment-${item.id}`}
-                >
-                  <label
-                    className="text-sm font-semibold"
-                    htmlFor={`cancellation-reason-${item.id}`}
-                  >
-                    Motivo de cancelación (opcional)
-                  </label>
-                  <input
-                    className="bg-surface focus:border-primary mt-3 w-full rounded-lg border border-white/10 px-3 py-2 text-sm outline-none"
-                    id={`cancellation-reason-${item.id}`}
-                    maxLength={500}
-                    onChange={(event) =>
-                      setCancellationReason(event.target.value)
-                    }
-                    placeholder="Ej. Cambio de planes"
-                    value={cancellationReason}
-                  />
-                  <p className="text-muted mt-2 text-xs">
-                    Si indicas un motivo, debe tener al menos 3 caracteres.
-                  </p>
-                  {cancelAppointment.isError && (
-                    <p className="text-primary mt-3 text-sm" role="alert">
-                      No fue posible cancelar la cita. Actualiza la agenda e
-                      inténtalo nuevamente.
-                    </p>
-                  )}
-                  <div className="mt-4 flex flex-wrap gap-2">
                     <button
-                      className="bg-primary rounded-lg px-4 py-2 text-xs font-bold text-white disabled:opacity-40"
-                      disabled={
-                        cancelAppointment.isPending ||
-                        isInvalidCancellationReason(cancellationReason)
-                      }
-                      onClick={() => {
-                        const reason = cancellationReason.trim();
-                        cancelAppointment.mutate({
-                          appointmentId: item.id,
-                          ...(reason && { reason }),
-                        });
-                      }}
-                      type="button"
-                    >
-                      {cancelAppointment.isPending
-                        ? 'Cancelando…'
-                        : 'Confirmar cancelación'}
-                    </button>
-                    <button
-                      className="text-muted hover:text-foreground rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold"
-                      disabled={cancelAppointment.isPending}
+                      aria-controls={`cancel-appointment-${item.id}`}
+                      aria-expanded={cancellingAppointmentId === item.id}
+                      aria-label={`Cancelar cita de ${item.motorcycle.label}`}
+                      className="text-primary hover:text-danger mt-2 ml-4 text-xs font-semibold"
                       onClick={() => {
                         cancelAppointment.reset();
                         setCancellationReason('');
-                        setCancellingAppointmentId(null);
+                        setCancellingAppointmentId(item.id);
                       }}
                       type="button"
                     >
-                      Conservar cita
+                      Cancelar cita
                     </button>
-                  </div>
+                  )}
                 </div>
+
+                {cancellingAppointmentId === item.id && (
+                  <div
+                    className="bg-background basis-full rounded-xl border border-white/10 p-4 text-left"
+                    id={`cancel-appointment-${item.id}`}
+                  >
+                    <label
+                      className="text-sm font-semibold"
+                      htmlFor={`cancellation-reason-${item.id}`}
+                    >
+                      Motivo de cancelación (opcional)
+                    </label>
+                    <input
+                      className="bg-surface focus:border-primary mt-3 w-full rounded-lg border border-white/10 px-3 py-2 text-sm outline-none"
+                      id={`cancellation-reason-${item.id}`}
+                      maxLength={500}
+                      onChange={(event) =>
+                        setCancellationReason(event.target.value)
+                      }
+                      placeholder="Ej. Cambio de planes"
+                      value={cancellationReason}
+                    />
+                    <p className="text-muted mt-2 text-xs">
+                      Si indicas un motivo, debe tener al menos 3 caracteres.
+                    </p>
+                    {cancelAppointment.isError && (
+                      <p className="text-primary mt-3 text-sm" role="alert">
+                        No fue posible cancelar la cita. Actualiza la agenda e
+                        inténtalo nuevamente.
+                      </p>
+                    )}
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button
+                        className="bg-primary rounded-lg px-4 py-2 text-xs font-bold text-white disabled:opacity-40"
+                        disabled={
+                          cancelAppointment.isPending ||
+                          isInvalidCancellationReason(cancellationReason)
+                        }
+                        onClick={() => {
+                          const reason = cancellationReason.trim();
+                          cancelAppointment.mutate({
+                            appointmentId: item.id,
+                            ...(reason && { reason }),
+                          });
+                        }}
+                        type="button"
+                      >
+                        {cancelAppointment.isPending
+                          ? 'Cancelando…'
+                          : 'Confirmar cancelación'}
+                      </button>
+                      <button
+                        className="text-muted hover:text-foreground rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold"
+                        disabled={cancelAppointment.isPending}
+                        onClick={() => {
+                          cancelAppointment.reset();
+                          setCancellationReason('');
+                          setCancellingAppointmentId(null);
+                        }}
+                        type="button"
+                      >
+                        Conservar cita
+                      </button>
+                    </div>
+                  </div>
                 )}
               </article>
             );

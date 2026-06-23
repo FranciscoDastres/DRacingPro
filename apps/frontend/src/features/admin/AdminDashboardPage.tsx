@@ -1,37 +1,62 @@
 import type { AdminAppointment, AdminMetrics } from '@dracing/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { Card, StatCard } from '../../components/ui/Card';
-import { BarChart, BarList, type ChartPoint } from '../../components/ui/Chart';
+import { Card } from '../../components/ui/Card';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { Icon, type IconName } from '../../components/ui/Icon';
 import { formatCLP } from '../../components/ui/money';
-import { PageHeader } from '../../components/ui/PageHeader';
 import { apiClient } from '../../lib/api-client';
 
-const RANGE_DAYS = 30;
+const RANGE_OPTIONS = [7, 30, 90] as const;
+const STATUS_LABELS: Record<string, string> = {
+  cancelled: 'Canceladas',
+  checked_in: 'Recibidas',
+  completed: 'Completadas',
+  confirmed: 'Confirmadas',
+  in_service: 'En servicio',
+  no_show: 'No asistió',
+  ready: 'Listas',
+  requested: 'Solicitadas',
+};
+const CHART_COLORS = ['#ff2948', '#39e991', '#ffb84d', '#718096', '#9b87f5'];
 
 function isoDate(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
-    2,
-    '0',
-  )}-${String(date.getDate()).padStart(2, '0')}`;
+  return date.toISOString().slice(0, 10);
 }
 
-const dateTimeFormatter = new Intl.DateTimeFormat('es-CL', {
+const appointmentFormatter = new Intl.DateTimeFormat('es-CL', {
   day: '2-digit',
   hour: '2-digit',
   minute: '2-digit',
   month: 'short',
+  timeZone: 'America/Santiago',
 });
 
 export function AdminDashboardPage() {
   const queryClient = useQueryClient();
-  const to = new Date();
-  const from = new Date();
-  from.setDate(from.getDate() - (RANGE_DAYS - 1));
-  const range = { from: isoDate(from), to: isoDate(to) };
+  const [rangeDays, setRangeDays] =
+    useState<(typeof RANGE_OPTIONS)[number]>(30);
+  const range = useMemo(() => {
+    const to = new Date();
+    const from = new Date();
+    from.setDate(from.getDate() - (rangeDays - 1));
+    return { from: isoDate(from), to: isoDate(to) };
+  }, [rangeDays]);
 
   const metricsQuery = useQuery({
     queryFn: () =>
@@ -40,156 +65,388 @@ export function AdminDashboardPage() {
       ),
     queryKey: ['admin', 'metrics', range.from, range.to],
   });
-
   const pendingQuery = useQuery({
-    queryFn: () =>
-      apiClient.get<AdminAppointment[]>(
-        `/v1/admin/appointments?from=${range.from}&to=${isoDate(
-          new Date(to.getTime() + 60 * 24 * 60 * 60 * 1000),
-        )}&statuses=requested`,
-      ),
+    queryFn: () => {
+      const end = new Date();
+      end.setDate(end.getDate() + 30);
+      return apiClient.get<AdminAppointment[]>(
+        `/v1/admin/appointments?from=${isoDate(new Date())}&to=${isoDate(end)}&statuses=requested`,
+      );
+    },
     queryKey: ['admin', 'pending-requests'],
   });
-
   const confirmMutation = useMutation({
     mutationFn: (id: string) =>
       apiClient.patch(`/v1/admin/appointments/${id}/status`, {
         status: 'confirmed',
       }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: ['admin', 'pending-requests'],
-      });
-      void queryClient.invalidateQueries({ queryKey: ['admin', 'metrics'] });
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ['admin', 'pending-requests'],
+        }),
+        queryClient.invalidateQueries({ queryKey: ['admin', 'metrics'] }),
+      ]);
     },
   });
 
   const metrics = metricsQuery.data;
-  const pending = pendingQuery.data ?? [];
-
-  const revenueByDay: ChartPoint[] = (metrics?.revenueByDay ?? []).map(
-    (point) => ({
-      display: formatCLP(point.total),
-      label: point.date.slice(8, 10),
-      value: point.total,
-    }),
-  );
-  const revenueByService: ChartPoint[] = (metrics?.revenueByService ?? []).map(
-    (point) => ({
-      display: formatCLP(point.total),
-      label: point.name,
-      value: point.total,
-    }),
-  );
+  const revenueData = (metrics?.revenueByDay ?? []).map((point) => ({
+    date: point.date.slice(5),
+    ingresos: point.total,
+  }));
+  const statusData = Object.entries(metrics?.appointmentsByStatus ?? {})
+    .filter(([, value]) => value > 0)
+    .map(([status, value]) => ({
+      name: STATUS_LABELS[status] ?? status,
+      value,
+    }));
 
   return (
-    <div>
-      <PageHeader
-        eyebrow="Administración"
-        subtitle={`Resumen del taller · últimos ${RANGE_DAYS} días`}
-        title="Panel"
-      />
+    <div className="space-y-6">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-primary text-xs font-bold tracking-[0.18em] uppercase">
+            Centro de operaciones
+          </p>
+          <h1 className="mt-2 text-3xl font-black tracking-tight">Dashboard</h1>
+          <p className="text-muted mt-2 text-sm">
+            Rendimiento del taller y actividad en tiempo real.
+          </p>
+        </div>
+        <div
+          aria-label="Período del dashboard"
+          className="bg-surface flex rounded-xl border border-white/8 p-1"
+          role="group"
+        >
+          {RANGE_OPTIONS.map((days) => (
+            <button
+              aria-pressed={rangeDays === days}
+              className={`rounded-lg px-3 py-2 text-xs font-bold transition ${
+                rangeDays === days
+                  ? 'bg-primary text-white shadow-lg shadow-red-950/30'
+                  : 'text-muted hover:text-foreground'
+              }`}
+              key={days}
+              onClick={() => setRangeDays(days)}
+              type="button"
+            >
+              {days} días
+            </button>
+          ))}
+        </div>
+      </header>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          accent="success"
-          hint="Citas completadas en el período"
-          icon="wallet"
-          label="Ingresos"
-          value={formatCLP(metrics?.totalRevenue ?? 0)}
-        />
-        <StatCard
-          icon="check"
-          label="Citas completadas"
-          value={metrics?.completedCount ?? 0}
-        />
-        <StatCard
-          icon="chart"
-          label="Ticket promedio"
-          value={formatCLP(metrics?.averageTicket ?? 0)}
-        />
-        <StatCard
-          accent="warning"
-          hint="Esperando confirmación"
-          icon="clock"
-          label="Solicitudes pendientes"
-          value={metrics?.pendingRequests ?? 0}
-        />
-      </div>
+      {metricsQuery.isError ? (
+        <p className="border-primary/30 bg-primary/10 rounded-xl border p-4 text-sm">
+          No fue posible cargar las métricas del taller.
+        </p>
+      ) : metricsQuery.isLoading ? (
+        <DashboardSkeleton />
+      ) : (
+        <>
+          <section className="bg-surface grid overflow-hidden rounded-2xl border border-white/8 sm:grid-cols-2 xl:grid-cols-5">
+            <Metric
+              icon="wallet"
+              label="Ingresos"
+              value={formatCLP(metrics?.totalRevenue ?? 0)}
+            />
+            <Metric
+              icon="check"
+              label="Completadas"
+              value={metrics?.completedCount ?? 0}
+            />
+            <Metric
+              icon="chart"
+              label="Ticket promedio"
+              value={formatCLP(metrics?.averageTicket ?? 0)}
+            />
+            <Metric
+              icon="users"
+              label="Usuarios nuevos"
+              value={metrics?.newUsersCount ?? 0}
+            />
+            <Metric
+              accent
+              icon="clock"
+              label="Por confirmar"
+              value={metrics?.pendingRequests ?? 0}
+            />
+          </section>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-        <Card className="p-5">
-          <h2 className="font-display text-sm font-bold tracking-wide text-white uppercase">
-            Ingresos por día
-          </h2>
-          {revenueByDay.some((point) => point.value > 0) ? (
-            <div className="mt-4">
-              <BarChart data={revenueByDay} />
-            </div>
-          ) : (
-            <p className="text-muted mt-6 text-sm">
-              Aún no hay ingresos registrados en el período.
-            </p>
-          )}
-        </Card>
-
-        <Card className="p-5">
-          <h2 className="font-display text-sm font-bold tracking-wide text-white uppercase">
-            Ingresos por servicio
-          </h2>
-          {revenueByService.length > 0 ? (
-            <div className="mt-4">
-              <BarList data={revenueByService} />
-            </div>
-          ) : (
-            <p className="text-muted mt-6 text-sm">Sin datos todavía.</p>
-          )}
-        </Card>
-      </div>
-
-      <section className="mt-6">
-        <h2 className="font-display mb-3 text-sm font-bold tracking-wide text-white uppercase">
-          Citas solicitadas
-        </h2>
-        {pending.length === 0 ? (
-          <EmptyState
-            icon="calendar"
-            title="Sin solicitudes pendientes"
-            description="Las nuevas reservas de clientes aparecerán aquí para que las confirmes."
-          />
-        ) : (
-          <div className="space-y-3">
-            {pending.map((appointment) => (
-              <Card
-                className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
-                key={appointment.id}
+          <section className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
+            <Card className="p-5 sm:p-6">
+              <div>
+                <h2 className="text-sm font-bold">Evolución de ingresos</h2>
+                <p className="text-muted mt-1 text-xs">
+                  Servicios completados en el período
+                </p>
+              </div>
+              <div
+                className="mt-5 h-72"
+                role="img"
+                aria-label="Gráfico de ingresos diarios"
               >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-foreground font-semibold">
-                      {appointment.customer.displayName}
-                    </p>
-                    <Badge tone="neutral">Solicitada</Badge>
+                <ResponsiveContainer height="100%" width="100%">
+                  <AreaChart
+                    data={revenueData}
+                    margin={{ left: -16, right: 8 }}
+                  >
+                    <defs>
+                      <linearGradient
+                        id="revenueGradient"
+                        x1="0"
+                        x2="0"
+                        y1="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="0%"
+                          stopColor="#ff2948"
+                          stopOpacity={0.42}
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor="#ff2948"
+                          stopOpacity={0}
+                        />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid
+                      stroke="rgba(255,255,255,.055)"
+                      vertical={false}
+                    />
+                    <XAxis
+                      axisLine={false}
+                      dataKey="date"
+                      minTickGap={22}
+                      tick={{ fill: '#8d98a8', fontSize: 10 }}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      axisLine={false}
+                      tick={{ fill: '#8d98a8', fontSize: 10 }}
+                      tickFormatter={(value: number) =>
+                        `$${Math.round(value / 1000)}k`
+                      }
+                      tickLine={false}
+                    />
+                    <Tooltip
+                      contentStyle={tooltipStyle}
+                      formatter={(value) => [
+                        formatCLP(Number(value)),
+                        'Ingresos',
+                      ]}
+                      labelStyle={{ color: '#f5f7fa' }}
+                    />
+                    <Area
+                      dataKey="ingresos"
+                      fill="url(#revenueGradient)"
+                      stroke="#ff2948"
+                      strokeWidth={2.5}
+                      type="monotone"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+
+            <Card className="p-5 sm:p-6">
+              <h2 className="text-sm font-bold">Distribución de citas</h2>
+              <p className="text-muted mt-1 text-xs">
+                Estados operativos del período
+              </p>
+              {statusData.length ? (
+                <>
+                  <div
+                    className="mx-auto mt-4 h-44 max-w-60"
+                    role="img"
+                    aria-label="Distribución de citas por estado"
+                  >
+                    <ResponsiveContainer height="100%" width="100%">
+                      <PieChart>
+                        <Pie
+                          data={statusData}
+                          dataKey="value"
+                          innerRadius={52}
+                          outerRadius={72}
+                          paddingAngle={4}
+                          stroke="none"
+                        >
+                          {statusData.map((item, index) => (
+                            <Cell
+                              fill={CHART_COLORS[index % CHART_COLORS.length]!}
+                              key={item.name}
+                            />
+                          ))}
+                        </Pie>
+                        <Tooltip contentStyle={tooltipStyle} />
+                      </PieChart>
+                    </ResponsiveContainer>
                   </div>
-                  <p className="text-muted mt-0.5 text-sm">
-                    {appointment.motorcycle.label} ·{' '}
-                    {dateTimeFormatter.format(new Date(appointment.startsAt))} ·{' '}
-                    {formatCLP(appointment.total)}
+                  <div className="grid grid-cols-2 gap-2">
+                    {statusData.slice(0, 6).map((item, index) => (
+                      <div
+                        className="flex items-center gap-2 text-xs"
+                        key={item.name}
+                      >
+                        <span
+                          className="size-2 rounded-full"
+                          style={{
+                            background:
+                              CHART_COLORS[index % CHART_COLORS.length]!,
+                          }}
+                        />
+                        <span className="text-muted truncate">{item.name}</span>
+                        <span className="ml-auto font-semibold">
+                          {item.value}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="text-muted mt-8 text-sm">
+                  Sin citas en este período.
+                </p>
+              )}
+            </Card>
+          </section>
+
+          <section className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.65fr)]">
+            <Card className="p-5 sm:p-6">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-sm font-bold">Próximas solicitudes</h2>
+                  <p className="text-muted mt-1 text-xs">
+                    Reservas que requieren confirmación
                   </p>
                 </div>
-                <Button
-                  disabled={confirmMutation.isPending}
-                  icon="check"
-                  onClick={() => confirmMutation.mutate(appointment.id)}
-                  size="sm"
-                >
-                  Confirmar
-                </Button>
-              </Card>
-            ))}
-          </div>
-        )}
-      </section>
+                <Badge tone={pendingQuery.data?.length ? 'warning' : 'success'}>
+                  {pendingQuery.data?.length ?? 0}
+                </Badge>
+              </div>
+              {!pendingQuery.data?.length ? (
+                <div className="mt-5">
+                  <EmptyState
+                    icon="calendar"
+                    title="Todo al día"
+                    description="No hay solicitudes pendientes."
+                  />
+                </div>
+              ) : (
+                <div className="mt-4 divide-y divide-white/8">
+                  {pendingQuery.data.slice(0, 5).map((appointment) => (
+                    <div
+                      className="flex flex-col gap-3 py-3.5 sm:flex-row sm:items-center"
+                      key={appointment.id}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold">
+                          {appointment.customer.displayName}
+                        </p>
+                        <p className="text-muted mt-1 truncate text-xs">
+                          {appointmentFormatter.format(
+                            new Date(appointment.startsAt),
+                          )}{' '}
+                          ·{' '}
+                          {appointment.services
+                            .map((service) => service.name)
+                            .join(', ')}
+                        </p>
+                      </div>
+                      <Button
+                        disabled={confirmMutation.isPending}
+                        icon="check"
+                        onClick={() => confirmMutation.mutate(appointment.id)}
+                        size="sm"
+                      >
+                        Confirmar
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+            <Card className="p-5 sm:p-6">
+              <h2 className="text-sm font-bold">Ingresos por servicio</h2>
+              <div className="mt-5 space-y-4">
+                {(metrics?.revenueByService ?? []).map((service) => (
+                  <div key={service.name}>
+                    <div className="flex justify-between gap-3 text-xs">
+                      <span className="truncate">{service.name}</span>
+                      <span className="text-muted shrink-0 tabular-nums">
+                        {formatCLP(service.total)}
+                      </span>
+                    </div>
+                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/5">
+                      <div
+                        className="from-primary to-accent h-full rounded-full bg-gradient-to-r"
+                        style={{
+                          width: `${Math.max((service.total / Math.max(metrics?.totalRevenue ?? 1, 1)) * 100, 3)}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </section>
+        </>
+      )}
+    </div>
+  );
+}
+
+const tooltipStyle = {
+  background: '#141b24',
+  border: '1px solid rgba(255,255,255,.1)',
+  borderRadius: 12,
+  color: '#f5f7fa',
+  fontSize: 12,
+};
+
+function Metric({
+  accent = false,
+  icon,
+  label,
+  value,
+}: {
+  accent?: boolean;
+  icon: IconName;
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-3 border-white/8 p-4 not-last:border-b sm:odd:border-r xl:border-r xl:border-b-0">
+      <span
+        className={`grid size-9 shrink-0 place-items-center rounded-lg ${accent ? 'bg-primary/15 text-primary' : 'text-muted bg-white/5'}`}
+      >
+        <Icon className="size-4" name={icon} />
+      </span>
+      <div className="min-w-0">
+        <p className="text-muted truncate text-[0.64rem] font-semibold tracking-[0.1em] uppercase">
+          {label}
+        </p>
+        <p
+          className={`mt-1 truncate text-xl font-bold tabular-nums ${accent ? 'text-primary' : 'text-foreground'}`}
+        >
+          {value}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-4" aria-label="Cargando dashboard">
+      <div className="bg-surface h-24 animate-pulse rounded-2xl border border-white/8" />
+      <div className="grid gap-4 xl:grid-cols-[2fr_1fr]">
+        <div className="bg-surface h-96 animate-pulse rounded-2xl border border-white/8" />
+        <div className="bg-surface h-96 animate-pulse rounded-2xl border border-white/8" />
+      </div>
     </div>
   );
 }

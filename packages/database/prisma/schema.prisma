@@ -228,6 +228,7 @@ model users {
   is_active                  Boolean                      @default(true)
   created_at                 DateTime                     @default(now()) @db.Timestamptz(6)
   updated_at                 DateTime                     @default(now()) @db.Timestamptz(6)
+  deleted_at                 DateTime?                    @db.Timestamptz(6)
   appointment_status_history appointment_status_history[]
   appointments               appointments[]
   audit_logs                 audit_logs[]
@@ -236,6 +237,8 @@ model users {
   motorcycles                motorcycles[]
   oauth_accounts             oauth_accounts[]
   schedule_exceptions        schedule_exceptions[]
+
+  @@index([deleted_at], map: "users_deleted_at_idx")
 }
 
 enum appointment_status {

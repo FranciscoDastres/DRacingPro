@@ -28,13 +28,13 @@ export function ServicesPage() {
         </p>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {query.data?.map((service) => (
-          <Card className="p-6" key={service.id}>
-            <div className="flex items-start justify-between gap-4">
+          <Card className="p-4" interactive key={service.id}>
+            <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-accent font-mono text-xs">{service.code}</p>
-                <h2 className="font-display mt-2 text-xl font-bold">
+                <h2 className="font-display mt-1.5 text-base font-bold">
                   {service.name}
                 </h2>
               </div>
@@ -42,8 +42,10 @@ export function ServicesPage() {
                 {formatCLP(service.price)}
               </p>
             </div>
-            <p className="text-muted mt-4 leading-7">{service.description}</p>
-            <p className="text-muted mt-5 flex items-center gap-2 text-sm font-semibold">
+            <p className="text-muted mt-3 line-clamp-2 text-sm leading-6">
+              {service.description}
+            </p>
+            <p className="text-muted mt-4 flex items-center gap-2 text-xs font-semibold">
               <Icon className="size-4" name="clock" />
               {service.durationMinutes} minutos
             </p>

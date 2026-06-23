@@ -543,6 +543,7 @@ function mapAdminAppointment(
       display_name: string;
       email: string;
       id: string;
+      phone: string | null;
     };
   },
 ): AdminAppointment {
@@ -552,6 +553,7 @@ function mapAdminAppointment(
       displayName: appointment.users.display_name,
       email: appointment.users.email,
       id: appointment.users.id,
+      phone: appointment.users.phone,
     },
     serviceBay: mapServiceBay(appointment.service_bays),
   };

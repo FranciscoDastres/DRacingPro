@@ -13,16 +13,14 @@ interface NavItem {
 const customerNav: NavItem[] = [
   { end: true, icon: 'chart', label: 'Resumen', to: '/app' },
   { icon: 'calendar', label: 'Agenda', to: '/app/appointments' },
-  { icon: 'spark', label: 'Novedades', to: '/app/notifications' },
-  { icon: 'bike', label: 'Mis motos', to: '/app/motorcycles' },
   { icon: 'tool', label: 'Servicios', to: '/app/services' },
-  { icon: 'user', label: 'Mi cuenta', to: '/app/account' },
 ];
 
 const adminNav: NavItem[] = [
   { end: true, icon: 'chart', label: 'Panel', to: '/app/admin' },
   { icon: 'calendar', label: 'Agenda taller', to: '/app/admin/agenda' },
   { icon: 'users', label: 'Usuarios', to: '/app/admin/users' },
+  { icon: 'tool', label: 'Servicios', to: '/app/admin/services' },
   { icon: 'settings', label: 'Configuración', to: '/app/admin/settings' },
 ];
 
@@ -44,11 +42,14 @@ export function AppShell() {
     .toUpperCase();
 
   return (
-    <div className="bg-background text-foreground min-h-screen">
-      <header className="bg-surface/80 sticky top-0 z-30 border-b border-white/10 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 lg:px-8">
-          <NavLink className="flex items-center gap-3" to="/app">
-            <span className="bg-primary grid size-9 place-items-center rounded-xl text-xs font-black text-white italic">
+    <div className="admin-grid-bg bg-background text-foreground min-h-screen">
+      <header className="bg-background/75 sticky top-0 z-30 border-b border-white/8 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-4 py-3.5 lg:px-6">
+          <NavLink
+            className="flex items-center gap-3"
+            to={isAdmin ? '/app/admin' : '/app'}
+          >
+            <span className="bg-primary shadow-primary/20 grid size-9 place-items-center rounded-lg text-xs font-black text-white italic shadow-lg">
               DR
             </span>
             <span className="hidden text-sm font-bold tracking-[0.18em] uppercase sm:block">
@@ -63,10 +64,10 @@ export function AppShell() {
                 <p className="text-muted text-xs">{user?.email}</p>
               </div>
               <span
-                className={`grid size-10 place-items-center rounded-full text-xs font-black ${
+                className={`grid size-9 place-items-center rounded-full text-xs font-black ${
                   isAdmin
                     ? 'bg-primary text-white'
-                    : 'bg-white/10 text-foreground'
+                    : 'text-foreground bg-white/10'
                 }`}
               >
                 {initials}
@@ -84,31 +85,29 @@ export function AppShell() {
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-7xl lg:grid-cols-[232px_1fr]">
+      <div className="mx-auto grid max-w-[1600px] lg:grid-cols-[240px_minmax(0,1fr)]">
         <nav
           aria-label="Navegación principal"
-          className="flex gap-2 overflow-x-auto border-b border-white/10 px-5 py-3 lg:min-h-[calc(100vh-73px)] lg:flex-col lg:gap-1 lg:border-r lg:border-b-0 lg:px-4 lg:py-6"
+          className="bg-background/55 flex gap-2 overflow-x-auto border-b border-white/8 px-4 py-3 backdrop-blur-lg lg:sticky lg:top-[65px] lg:h-[calc(100vh-65px)] lg:flex-col lg:gap-1 lg:overflow-y-auto lg:border-r lg:border-b-0 lg:px-4 lg:py-6"
         >
-          <p className="text-muted hidden px-3 pb-1 text-[0.62rem] font-semibold tracking-[0.16em] uppercase lg:block">
-            Mi taller
+          <p className="text-muted hidden px-3 pb-2 text-[0.62rem] font-semibold tracking-[0.18em] uppercase lg:block">
+            {isAdmin ? 'Centro de operaciones' : 'Mi taller'}
           </p>
-          {customerNav.map((item) => (
+          {(isAdmin ? adminNav : customerNav).map((item) => (
             <NavItemLink item={item} key={item.to} />
           ))}
 
           {isAdmin && (
-            <>
-              <p className="text-accent mt-4 hidden px-3 pb-1 text-[0.62rem] font-semibold tracking-[0.16em] uppercase lg:block">
-                Administración
+            <div className="mt-auto hidden rounded-xl border border-white/8 bg-white/[0.025] p-3 lg:block">
+              <p className="text-muted text-[0.65rem] font-semibold tracking-wider uppercase">
+                Sistema
               </p>
-              {adminNav.map((item) => (
-                <NavItemLink item={item} key={item.to} />
-              ))}
-            </>
+              <p className="mt-1.5 text-xs text-emerald-400">● Operativo</p>
+            </div>
           )}
         </nav>
 
-        <main className="min-w-0 px-5 py-8 lg:px-10 lg:py-10">
+        <main className="min-w-0 px-4 py-7 sm:px-6 lg:px-8 lg:py-8 xl:px-10">
           <Outlet />
         </main>
       </div>
@@ -120,10 +119,10 @@ function NavItemLink({ item }: { item: NavItem }) {
   return (
     <NavLink
       className={({ isActive }) =>
-        `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold whitespace-nowrap transition ${
+        `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold whitespace-nowrap transition-all ${
           isActive
-            ? 'bg-accent/10 text-accent'
-            : 'text-muted hover:text-foreground hover:bg-white/5'
+            ? 'bg-primary/12 text-foreground shadow-[inset_2px_0_0_var(--color-primary)]'
+            : 'text-muted hover:text-foreground hover:bg-white/[0.04]'
         }`
       }
       end={item.end ?? false}

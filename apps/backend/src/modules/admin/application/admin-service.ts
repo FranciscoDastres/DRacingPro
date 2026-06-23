@@ -3,6 +3,7 @@ import type {
   AdminMetrics,
   AdminMetricsFilters,
   AdminUser,
+  CreateAdminUserInput,
   UpdateUserInput,
 } from '@dracing/contracts';
 import type { DatabaseClient } from '@dracing/database';
@@ -19,6 +20,7 @@ export class AdminService {
       this.database.users.findMany({
         include: { _count: { select: { appointments: true } } },
         orderBy: { created_at: 'desc' },
+        where: { deleted_at: null },
       }),
       this.database.appointments.findMany({
         select: {
@@ -57,6 +59,26 @@ export class AdminService {
     }));
   }
 
+  async createUser(input: CreateAdminUserInput): Promise<AdminUser> {
+    try {
+      const created = await this.database.users.create({
+        data: {
+          display_name: input.displayName,
+          email: input.email,
+          phone: input.phone,
+          role: 'customer',
+        },
+        select: { id: true },
+      });
+      return await this.getUser(created.id);
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        throw new AdminUserError('email_already_exists');
+      }
+      throw error;
+    }
+  }
+
   async updateUser(
     actorUserId: string,
     userId: string,
@@ -65,7 +87,8 @@ export class AdminService {
     const target = await this.database.users.findUnique({
       where: { id: userId },
     });
-    if (!target) throw new AdminUserError('user_not_found');
+    if (!target || target.deleted_at)
+      throw new AdminUserError('user_not_found');
 
     // The only administrator cannot be disabled or changed from the client UI.
     if (target.role === 'admin') {
@@ -75,25 +98,79 @@ export class AdminService {
       throw new AdminUserError('cannot_disable_self');
     }
 
-    await this.database.users.update({
-      data: {
-        ...(input.isActive !== undefined && { is_active: input.isActive }),
-      },
+    try {
+      await this.database.users.update({
+        data: {
+          ...(input.displayName !== undefined && {
+            display_name: input.displayName,
+          }),
+          ...(input.email !== undefined && { email: input.email }),
+          ...(input.isActive !== undefined && { is_active: input.isActive }),
+          ...(input.phone !== undefined && { phone: input.phone }),
+        },
+        where: { id: userId },
+      });
+      return await this.getUser(userId);
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        throw new AdminUserError('email_already_exists');
+      }
+      throw error;
+    }
+  }
+
+  async deleteUser(actorUserId: string, userId: string): Promise<void> {
+    const target = await this.database.users.findUnique({
       where: { id: userId },
     });
+    if (!target || target.deleted_at)
+      throw new AdminUserError('user_not_found');
+    if (target.role === 'admin' || actorUserId === userId) {
+      throw new AdminUserError('cannot_delete_admin');
+    }
 
-    const [updated] = await this.listUsers().then((all) =>
-      all.filter((user) => user.id === userId),
-    );
-    if (!updated) throw new AdminUserError('user_not_found');
-    return updated;
+    await this.database.$transaction(async (transaction) => {
+      await transaction.auth_sessions.updateMany({
+        data: { revoked_at: new Date() },
+        where: { user_id: userId, revoked_at: null },
+      });
+      await transaction.oauth_accounts.deleteMany({
+        where: { user_id: userId },
+      });
+      await transaction.users.update({
+        data: {
+          avatar_url: null,
+          deleted_at: new Date(),
+          display_name: 'Usuario eliminado',
+          email: `deleted-${userId}@deleted.dracingpro.invalid`,
+          is_active: false,
+          password_hash: null,
+          phone: null,
+        },
+        where: { id: userId },
+      });
+      await transaction.audit_logs.create({
+        data: {
+          action: 'user.deleted',
+          actor_user_id: actorUserId,
+          entity_id: userId,
+          entity_type: 'user',
+        },
+      });
+    });
+  }
+
+  private async getUser(userId: string): Promise<AdminUser> {
+    const user = (await this.listUsers()).find((item) => item.id === userId);
+    if (!user) throw new AdminUserError('user_not_found');
+    return user;
   }
 
   async getMetrics(filters: AdminMetricsFilters): Promise<AdminMetrics> {
     const dayStart = workshopDayStart(filters.from);
     const dayEnd = workshopDayStart(addDays(filters.to, 1));
 
-    const [appointments, pendingRequests] = await Promise.all([
+    const [appointments, pendingRequests, newUsers] = await Promise.all([
       this.database.appointments.findMany({
         select: {
           appointment_services: {
@@ -109,11 +186,20 @@ export class AdminService {
         where: { starts_at: { gte: dayStart, lt: dayEnd } },
       }),
       this.database.appointments.count({ where: { status: 'requested' } }),
+      this.database.users.findMany({
+        select: { created_at: true },
+        where: {
+          created_at: { gte: dayStart, lt: dayEnd },
+          deleted_at: null,
+          role: 'customer',
+        },
+      }),
     ]);
 
     const appointmentsByStatus: Record<string, number> = {};
     const revenueByDayMap = new Map<string, number>();
     const revenueByServiceMap = new Map<string, number>();
+    const newUsersByDayMap = new Map<string, number>();
     let totalRevenue = 0;
     let completedCount = 0;
 
@@ -141,12 +227,22 @@ export class AdminService {
       );
     }
 
+    for (const user of newUsers) {
+      const day = formatWorkshopDate(user.created_at);
+      newUsersByDayMap.set(day, (newUsersByDayMap.get(day) ?? 0) + 1);
+    }
+
     return {
       appointmentsByStatus,
       averageTicket: completedCount
         ? Math.round(totalRevenue / completedCount)
         : 0,
       completedCount,
+      newUsersCount: newUsers.length,
+      newUsersByDay: enumerateDays(filters.from, filters.to).map((date) => ({
+        date,
+        total: newUsersByDayMap.get(date) ?? 0,
+      })),
       pendingRequests,
       revenueByDay: enumerateDays(filters.from, filters.to).map((date) => ({
         date,
@@ -159,6 +255,15 @@ export class AdminService {
       totalRevenue,
     };
   }
+}
+
+function isUniqueConstraintError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === 'P2002'
+  );
 }
 
 function workshopDayStart(date: string): Date {

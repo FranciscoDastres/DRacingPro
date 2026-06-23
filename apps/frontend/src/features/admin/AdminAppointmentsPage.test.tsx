@@ -9,16 +9,12 @@ const primaryServiceBay: ServiceBay = {
   id: '439afc20-8e91-4196-9043-10a3eaf9f3b2',
   name: 'Bahía 1',
 };
-const secondaryServiceBay: ServiceBay = {
-  description: 'Bahía secundaria',
-  id: '8cb0a35b-819b-488d-84ec-98f0536cb9ec',
-  name: 'Bahía 2',
-};
 const appointment: AdminAppointment = {
   customer: {
     displayName: 'Cliente Agenda',
     email: 'cliente@example.com',
     id: '9d8ce4e1-1e2b-4a98-beb6-c96e8d5e63f2',
+    phone: '+56912345678',
   },
   endsAt: '2026-06-20T14:00:00.000Z',
   id: '78c865ca-8224-4e9e-a2e2-a9eddf4fb844',
@@ -93,24 +89,16 @@ describe('AdminAppointmentsPage', () => {
     );
   });
 
-  it('reassigns an active appointment to another service bay', async () => {
+  it('confirms an appointment and exposes its WhatsApp action', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.setSystemTime(new Date('2026-06-20T12:00:00.000Z'));
-    let wasReassigned = false;
     const fetchMock = vi.fn(async (input: string, init?: RequestInit) => {
-      let payload: unknown = [];
-      if (input === '/v1/admin/service-bays') {
-        payload = [primaryServiceBay, secondaryServiceBay];
-      } else if (init?.method === 'PATCH') {
-        wasReassigned = true;
-        payload = { ...appointment, serviceBay: secondaryServiceBay };
-      } else if (input.startsWith('/v1/admin/appointments?')) {
-        payload = [
-          wasReassigned
-            ? { ...appointment, serviceBay: secondaryServiceBay }
-            : appointment,
-        ];
-      }
+      const payload: unknown =
+        init?.method === 'PATCH'
+          ? { ...appointment, status: 'confirmed' }
+          : input.startsWith('/v1/admin/appointments?')
+            ? [appointment]
+            : [];
       return {
         headers: { get: () => 'application/json' },
         json: async () => payload,
@@ -129,29 +117,21 @@ describe('AdminAppointmentsPage', () => {
       </QueryClientProvider>,
     );
 
-    expect(
-      await screen.findByText('Bahía asignada: Bahía 1'),
-    ).toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Reasignar bahía de La Roja' }),
+    const whatsapp = await screen.findByRole('link', { name: 'WhatsApp' });
+    expect(whatsapp).toHaveAttribute(
+      'href',
+      expect.stringContaining('https://wa.me/56912345678'),
     );
-    fireEvent.change(
-      screen.getByRole('combobox', { name: 'Nueva bahía para La Roja' }),
-      { target: { value: secondaryServiceBay.id } },
-    );
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar bahía' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
 
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
-        `/v1/admin/appointments/${appointment.id}/service-bay`,
+        `/v1/admin/appointments/${appointment.id}/status`,
         expect.objectContaining({
-          body: JSON.stringify({ serviceBayId: secondaryServiceBay.id }),
+          body: JSON.stringify({ status: 'confirmed' }),
           method: 'PATCH',
         }),
       ),
     );
-    expect(
-      await screen.findByText('Bahía asignada: Bahía 2'),
-    ).toBeInTheDocument();
   });
 });
