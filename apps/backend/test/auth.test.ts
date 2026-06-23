@@ -1,5 +1,6 @@
 import { buildApp } from '../src/app.js';
 import { SessionService } from '../src/modules/auth/application/session-service.js';
+import { hashPassword } from '../src/modules/auth/infrastructure/password.js';
 import {
   MemoryAuthRepository,
   testUser,
@@ -57,7 +58,7 @@ describe('authentication routes', () => {
     await app.close();
   });
 
-  it('creates an admin session when dev login requests the admin role', async () => {
+  it('never creates an admin session through the development route', async () => {
     const repository = new MemoryAuthRepository();
     const app = await buildApp({
       appOrigin: 'http://localhost:5173',
@@ -79,34 +80,83 @@ describe('authentication routes', () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ role: 'admin' });
+    expect(response.json()).toMatchObject({ role: 'customer' });
     await app.close();
   });
 
-  it('promotes a configured admin email to the admin role on Google login', async () => {
+  it('authenticates the local administrator with a password', async () => {
     const repository = new MemoryAuthRepository();
-    const sessions = new SessionService(repository, undefined, [
-      'jefe@taller.cl',
-    ]);
-
-    const session = await sessions.loginWithGoogle(
-      {
-        avatarUrl: null,
-        displayName: 'Jefe Taller',
-        email: 'Jefe@Taller.cl',
-        subject: 'google-admin',
+    repository.user = {
+      ...testUser,
+      email: 'jefe@taller.cl',
+      role: 'admin',
+    };
+    repository.passwordHash = await hashPassword('a-secure-password');
+    const app = await buildApp({
+      appOrigin: 'http://localhost:5173',
+      auth: {
+        apiOrigin: 'http://localhost:3000',
+        appOrigin: 'http://localhost:5173',
+        secureCookies: false,
+        sessions: new SessionService(repository),
       },
-      {},
-    );
+      checkDatabase: async () => undefined,
+      logger: false,
+    });
 
-    expect(session.user.role).toBe('admin');
+    const response = await app.inject({
+      headers: { origin: 'http://localhost:5173' },
+      method: 'POST',
+      payload: {
+        email: 'JEFE@TALLER.CL',
+        password: 'a-secure-password',
+      },
+      url: '/v1/auth/login',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      email: 'jefe@taller.cl',
+      role: 'admin',
+    });
+    expect(response.headers['set-cookie']).toBeDefined();
+    await app.close();
   });
 
-  it('keeps non-admin emails as customers on Google login', async () => {
+  it('rejects invalid administrator credentials', async () => {
     const repository = new MemoryAuthRepository();
-    const sessions = new SessionService(repository, undefined, [
-      'jefe@taller.cl',
-    ]);
+    repository.user = { ...testUser, role: 'admin' };
+    repository.passwordHash = await hashPassword('a-secure-password');
+    const app = await buildApp({
+      appOrigin: 'http://localhost:5173',
+      auth: {
+        apiOrigin: 'http://localhost:3000',
+        appOrigin: 'http://localhost:5173',
+        secureCookies: false,
+        sessions: new SessionService(repository),
+      },
+      checkDatabase: async () => undefined,
+      logger: false,
+    });
+
+    const response = await app.inject({
+      headers: { origin: 'http://localhost:5173' },
+      method: 'POST',
+      payload: {
+        email: testUser.email,
+        password: 'wrong-password',
+      },
+      url: '/v1/auth/login',
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toEqual({ error: 'invalid_credentials' });
+    await app.close();
+  });
+
+  it('keeps Google users as customers', async () => {
+    const repository = new MemoryAuthRepository();
+    const sessions = new SessionService(repository);
 
     const session = await sessions.loginWithGoogle(
       {
@@ -119,32 +169,6 @@ describe('authentication routes', () => {
     );
 
     expect(session.user.role).toBe('customer');
-  });
-
-  it('enters as admin when the dev login email is configured as admin', async () => {
-    const repository = new MemoryAuthRepository();
-    const app = await buildApp({
-      appOrigin: 'http://localhost:5173',
-      auth: {
-        allowDevLogin: true,
-        apiOrigin: 'http://localhost:3000',
-        appOrigin: 'http://localhost:5173',
-        secureCookies: false,
-        sessions: new SessionService(repository, undefined, ['jefe@taller.cl']),
-      },
-      checkDatabase: async () => undefined,
-      logger: false,
-    });
-
-    const response = await app.inject({
-      method: 'POST',
-      payload: { email: 'jefe@taller.cl' },
-      url: '/v1/auth/dev-login',
-    });
-
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ role: 'admin' });
-    await app.close();
   });
 
   it('hides dev login when it is not allowed', async () => {
