@@ -13,17 +13,13 @@ import { WorkshopAdminService } from './modules/workshop/application/workshop-ad
 
 const environment = parseEnvironment();
 const database = createDatabaseClient(environment.DATABASE_URL);
-const sessions = new SessionService(
-  new PrismaAuthRepository(database),
-  undefined,
-  environment.ADMIN_EMAILS,
-);
+const sessions = new SessionService(new PrismaAuthRepository(database));
 const google = createGoogleClient();
 const appointmentService = new AppointmentService(database);
 const motorcycleRepository = new PrismaMotorcycleRepository(database);
 const app = await buildApp({
   admin: {
-    admin: new AdminService(database, environment.ADMIN_EMAILS),
+    admin: new AdminService(database),
     appOrigin: environment.APP_ORIGIN,
     sessions,
   },
