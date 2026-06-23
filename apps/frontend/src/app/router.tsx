@@ -5,6 +5,7 @@ import { WorkshopSettingsPage } from '../features/admin/WorkshopSettingsPage';
 import { AppointmentsPage } from '../features/appointments/AppointmentsPage';
 import { AppointmentTimelinePage } from '../features/appointments/AppointmentTimelinePage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
+import { LegalPage } from '../features/legal/LegalPage';
 import { MotorcyclesPage } from '../features/motorcycles/MotorcyclesPage';
 import { NotificationsPage } from '../features/notifications/NotificationsPage';
 import { ServicesPage } from '../features/services/ServicesPage';
@@ -15,6 +16,7 @@ import { ProtectedRoute } from './ProtectedRoute';
 
 export const router = createBrowserRouter([
   { element: <LandingPage />, path: '/' },
+  { element: <LegalPage />, path: '/legal/:doc' },
   {
     element: <ProtectedRoute />,
     children: [
