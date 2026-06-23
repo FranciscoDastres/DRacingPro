@@ -6,9 +6,9 @@
  */
 export function BrandLogo() {
   return (
-    <span className="inline-flex items-center gap-2 rounded-lg border border-dashed border-white/25 px-3 py-1.5">
-      <span aria-hidden="true" className="bg-primary size-5 rounded-sm" />
-      <span className="text-muted text-[10px] font-bold tracking-[0.24em] uppercase">
+    <span className="inline-flex items-center gap-2 rounded-lg border border-dashed border-black/20 px-3.5 py-2">
+      <span aria-hidden="true" className="bg-primary size-6 rounded-sm" />
+      <span className="text-[11px] font-bold tracking-[0.24em] text-[#6a6a6a] uppercase">
         Logo
       </span>
     </span>
