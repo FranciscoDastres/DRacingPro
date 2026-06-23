@@ -3,6 +3,7 @@ import { useEffect, useState, type MouseEvent, type ReactNode } from 'react';
 
 import { BookingModal } from '../features/appointments/BookingModal';
 import { LoginModal } from '../features/auth/LoginModal';
+import { Footer } from '../features/landing/Footer';
 import { TopBar } from '../features/landing/TopBar';
 import { WhatsAppButton } from '../features/landing/WhatsAppButton';
 
@@ -276,10 +277,11 @@ export function LandingPage() {
       <header className="sticky top-0 z-50 border-b border-white/10 bg-[#090909]/95 backdrop-blur-xl">
         <TopBar onMenuClick={() => setMenuOpen(true)} />
 
-        <div className="flex h-[72px] items-center px-5 sm:px-8 lg:px-12">
+        <div className="grid h-[72px] grid-cols-[1fr_auto_1fr] items-center px-5 sm:px-8 lg:px-12">
+          <span aria-hidden="true" />
           <nav
             aria-label="Navegación de portada"
-            className="hidden items-center gap-7 lg:flex"
+            className="hidden items-center justify-center gap-7 lg:flex"
           >
             <a className="landing-nav-link" href="#servicios">
               Servicios
@@ -292,7 +294,7 @@ export function LandingPage() {
             </a>
           </nav>
 
-          <div className="ml-auto flex items-center gap-3 sm:gap-4">
+          <div className="flex items-center justify-end gap-3 sm:gap-4">
             <span
               className="hidden items-center gap-2 text-xs text-[#b8b8b8] md:flex"
               role="status"
@@ -578,73 +580,11 @@ export function LandingPage() {
             </div>
           </div>
         </section>
-
-        <section className="bg-[#0a0a0a]" id="como-llegar">
-          <div className="mx-auto max-w-7xl px-5 py-20 sm:px-6 sm:py-24 lg:px-10">
-            <p className="text-primary text-xs font-semibold tracking-[0.2em] uppercase">
-              Cómo llegar
-            </p>
-            <h2 className="mt-4 max-w-3xl text-3xl leading-tight sm:text-5xl">
-              Visítanos en el taller
-            </h2>
-
-            <div className="mt-12 grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-stretch">
-              <div className="flex flex-col gap-6">
-                <div>
-                  <p className="text-muted text-xs font-semibold tracking-[0.14em] uppercase">
-                    Dirección
-                  </p>
-                  <p className="mt-3 text-2xl font-semibold text-white">
-                    Rosas 2871
-                  </p>
-                  <p className="mt-1 text-[#c9c9c9]">
-                    Comuna de Santiago, Región Metropolitana
-                  </p>
-                </div>
-                <a
-                  className="landing-secondary-button self-start"
-                  href="https://www.google.com/maps/search/?api=1&query=Rosas+2871,+Santiago,+Chile"
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  <Icon name="calendar" />
-                  Abrir en Google Maps
-                </a>
-              </div>
-
-              <div className="min-h-[320px] overflow-hidden rounded-3xl border border-white/10">
-                <iframe
-                  className="h-full min-h-[320px] w-full"
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                  src="https://www.google.com/maps?q=Rosas%202871,%20Santiago,%20Chile&output=embed"
-                  title="Mapa - Rosas 2871, Santiago"
-                />
-              </div>
-            </div>
-          </div>
-        </section>
       </main>
 
       <WhatsAppButton />
 
-      <footer className="bg-[#090909] text-[#919191]">
-        <div className="mx-auto flex max-w-7xl flex-col gap-5 px-5 py-8 text-xs sm:px-6 md:flex-row md:items-center md:justify-between lg:px-10">
-          <a
-            className="font-display text-sm font-bold tracking-[0.12em] text-white uppercase"
-            href="#top"
-          >
-            D Racing <span className="text-primary">Pro</span>
-          </a>
-          <p>Servicio especializado para Honda Navi · Santiago, Chile</p>
-          <a
-            className="hover:text-primary text-white transition"
-            href={LOGIN_URL}
-          >
-            Acceder a mi cuenta
-          </a>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
