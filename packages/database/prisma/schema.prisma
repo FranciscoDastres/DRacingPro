@@ -224,6 +224,7 @@ model users {
   avatar_url                 String?
   phone                      String?                      @db.VarChar(32)
   role                       user_role                    @default(customer)
+  password_hash              String?
   is_active                  Boolean                      @default(true)
   created_at                 DateTime                     @default(now()) @db.Timestamptz(6)
   updated_at                 DateTime                     @default(now()) @db.Timestamptz(6)
