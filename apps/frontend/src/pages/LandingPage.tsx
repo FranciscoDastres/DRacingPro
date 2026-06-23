@@ -214,7 +214,7 @@ export function LandingPage() {
       <BookingModal onClose={() => setBookingOpen(false)} open={bookingOpen} />
       <LoginModal onClose={() => setLoginOpen(false)} open={loginOpen} />
       <header className="sticky top-0 z-50 border-b border-white/10 bg-[#090909]/95 backdrop-blur-xl">
-        <TopBar />
+        <TopBar onMenuClick={() => setMenuOpen(true)} />
 
         <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-10">
           <a
@@ -268,15 +268,6 @@ export function LandingPage() {
               <Icon name="user" />
               Mi cuenta
             </a>
-            <button
-              aria-expanded={menuOpen}
-              aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'}
-              className="hover:border-primary hover:bg-primary grid size-11 place-items-center border border-white/15 bg-white/[0.04] text-white transition"
-              onClick={() => setMenuOpen((open) => !open)}
-              type="button"
-            >
-              <Icon name={menuOpen ? 'close' : 'menu'} />
-            </button>
           </div>
         </div>
       </header>

@@ -8,15 +8,24 @@ import { BrandLogo } from './BrandLogo';
  * the (placeholder) logo on the far left and, on the far right, social links,
  * the contact phone and the attention hours — using the full width.
  */
-export function TopBar() {
+export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
   return (
     <div className="border-b border-black/10 bg-white text-[#1a1a1a]">
-      <div className="flex h-16 items-center justify-between px-5 sm:px-8 lg:px-12">
-        <a aria-label="Inicio" href="#top">
+      <div className="grid h-16 grid-cols-[1fr_auto_1fr] items-center px-5 sm:px-8 lg:px-12">
+        <button
+          aria-label="Abrir menú"
+          className="grid size-10 place-items-center justify-self-start rounded-lg border border-black/10 text-[#1a1a1a] transition hover:border-black/30 hover:bg-black/5"
+          onClick={onMenuClick}
+          type="button"
+        >
+          <MenuIcon />
+        </button>
+
+        <a aria-label="Inicio" className="justify-self-center" href="#top">
           <BrandLogo />
         </a>
 
-        <div className="flex items-center gap-5 sm:gap-8">
+        <div className="flex items-center justify-end gap-5 sm:gap-8">
           <div className="flex items-center gap-2">
             <SocialLink href={CONTACT.social.facebook} label="Facebook">
               <FacebookIcon />
@@ -74,6 +83,23 @@ function SocialLink({
     >
       {children}
     </a>
+  );
+}
+
+function MenuIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height="18"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+      width="18"
+    >
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </svg>
   );
 }
 
