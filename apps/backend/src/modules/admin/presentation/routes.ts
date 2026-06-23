@@ -5,7 +5,8 @@ import {
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 
-import { AdminService, AdminUserError } from '../application/admin-service.js';
+import type { AdminService} from '../application/admin-service.js';
+import { AdminUserError } from '../application/admin-service.js';
 import type { SessionService } from '../../auth/application/session-service.js';
 import {
   hasTrustedOrigin,
