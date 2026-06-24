@@ -115,23 +115,27 @@ describe('AppointmentsPage', () => {
     vi.unstubAllGlobals();
   });
 
-  it('selects a service, an available 45-minute slot and creates the appointment', async () => {
+  it('books a slot, requires a WhatsApp phone and redirects to Flow to pay', async () => {
+    const paymentPath = `/v1/appointments/${appointment.id}/payment`;
     const fetchMock = vi.fn(async (input: string, init?: RequestInit) => {
       const isCreation =
         input === '/v1/appointments' && init?.method === 'POST';
+      const isPayment = input === paymentPath && init?.method === 'POST';
       const payload = isCreation
         ? {
             ...appointment,
             endsAt: availableSlot.endsAt,
             startsAt: availableSlot.startsAt,
           }
-        : input === '/v1/motorcycles'
-          ? [motorcycle]
-          : input === '/v1/services'
-            ? [service]
-            : input.startsWith('/v1/availability?')
-              ? [availableSlot]
-              : [];
+        : isPayment
+          ? { redirectUrl: 'https://sandbox.flow.cl/app/web/pay.php?token=abc' }
+          : input === '/v1/motorcycles'
+            ? [motorcycle]
+            : input === '/v1/services'
+              ? [service]
+              : input.startsWith('/v1/availability?')
+                ? [availableSlot]
+                : [];
 
       return {
         headers: { get: () => 'application/json' },
@@ -141,6 +145,11 @@ describe('AppointmentsPage', () => {
       };
     });
     vi.stubGlobal('fetch', fetchMock);
+    const assign = vi.fn();
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { ...window.location, assign },
+    });
 
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
@@ -153,18 +162,21 @@ describe('AppointmentsPage', () => {
       </MemoryRouter>,
     );
 
-    expect(
-      screen.queryByRole('combobox', { name: 'Selecciona tu Honda NAVI' }),
-    ).not.toBeInTheDocument();
     fireEvent.click(
       await screen.findByRole('checkbox', { name: /diagnóstico general/i }),
     );
     const slotButton = await screen.findByRole('button', { name: '09:30' });
     fireEvent.click(slotButton);
-    expect(slotButton).toHaveAttribute('aria-pressed', 'true');
+
     const confirmButton = screen.getByRole('button', {
-      name: 'Confirmar cita',
+      name: 'Confirmar y pagar',
     });
+    // Disabled until a valid Chilean WhatsApp number is provided.
+    expect(confirmButton).toBeDisabled();
+    fireEvent.change(
+      screen.getByLabelText('WhatsApp para coordinación'),
+      { target: { value: '+56912345678' } },
+    );
     expect(confirmButton).toBeEnabled();
     fireEvent.click(confirmButton);
 
@@ -176,12 +188,23 @@ describe('AppointmentsPage', () => {
             motorcycleId: motorcycle.id,
             serviceIds: [service.id],
             startsAt: availableSlot.startsAt,
+            whatsappPhone: '+56912345678',
           }),
           method: 'POST',
         }),
       ),
     );
-    expect(await screen.findByText('Solicitud enviada')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        paymentPath,
+        expect.objectContaining({ method: 'POST' }),
+      ),
+    );
+    await waitFor(() =>
+      expect(assign).toHaveBeenCalledWith(
+        'https://sandbox.flow.cl/app/web/pay.php?token=abc',
+      ),
+    );
 
     vi.unstubAllGlobals();
   });
