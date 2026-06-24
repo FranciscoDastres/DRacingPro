@@ -47,9 +47,11 @@ export function AppShell() {
     <div className="admin-grid-bg bg-background text-foreground min-h-screen">
       <header className="bg-background/75 sticky top-0 z-30 border-b border-white/8 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1600px] items-center justify-between px-4 py-3.5 lg:px-6">
+          {/* The logo always returns to the public landing page. */}
           <NavLink
+            aria-label="Ir a la página principal"
             className="flex items-center gap-3"
-            to={isAdmin ? '/app/admin' : '/app'}
+            to="/"
           >
             <span className="bg-primary shadow-primary/20 grid size-9 place-items-center rounded-lg text-xs font-black text-white italic shadow-lg">
               DR
@@ -60,6 +62,16 @@ export function AppShell() {
           </NavLink>
 
           <div className="flex items-center gap-3">
+            {/* Return to the panel matching the active session. */}
+            <NavLink
+              className="text-muted hover:border-primary/50 hover:text-foreground flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold transition"
+              to={isAdmin ? '/app/admin' : '/app'}
+            >
+              <Icon className="size-4" name="chart" />
+              <span className="hidden sm:inline">
+                {isAdmin ? 'Panel admin' : 'Mi panel'}
+              </span>
+            </NavLink>
             <div className="hidden items-center gap-3 sm:flex">
               <div className="text-right">
                 <p className="text-sm font-semibold">{user?.displayName}</p>
