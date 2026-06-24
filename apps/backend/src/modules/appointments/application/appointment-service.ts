@@ -18,6 +18,9 @@ import type { DatabaseClient } from '@dracing/database';
 
 const WORKSHOP_TIME_ZONE = 'America/Santiago';
 const ACTIVE_STATUSES = [
+  // A slot held while its Flow payment is pending must keep blocking the slot
+  // so two customers can't book the same time during the payment window.
+  'pending_payment',
   'requested',
   'confirmed',
   'checked_in',
@@ -165,6 +168,11 @@ export class AppointmentService {
         });
         if (!bay) throw new AppointmentConflictError();
 
+        // The booking holds the slot as `pending_payment`; the customer is then
+        // redirected to Flow. If the payment is not completed before the hold
+        // expires, the expiry job releases the slot (see PaymentService).
+        const settings = await transaction.payment_settings.findFirst();
+        const holdMinutes = settings?.hold_minutes ?? 30;
         const appointment = await transaction.appointments.create({
           data: {
             appointment_services: {
@@ -178,13 +186,18 @@ export class AppointmentService {
               })),
             },
             appointment_status_history: {
-              create: { to_status: 'requested' },
+              create: { to_status: 'pending_payment' },
             },
             customer_user_id: customerUserId,
             ends_at: endsAt,
             motorcycle_id: motorcycle.id,
+            payment_hold_expires_at: new Date(
+              Date.now() + holdMinutes * 60_000,
+            ),
             service_bay_id: bay.id,
             starts_at: requestedStart,
+            status: 'pending_payment',
+            whatsapp_phone: input.whatsappPhone,
           },
           include: appointmentInclude,
         });
@@ -572,6 +585,7 @@ const ALLOWED_STATUS_TRANSITIONS = {
   confirmed: ['checked_in', 'in_service', 'cancelled', 'no_show'],
   in_service: ['ready'],
   no_show: [],
+  pending_payment: ['confirmed', 'cancelled'],
   ready: ['completed'],
   requested: ['confirmed', 'cancelled'],
 } as const satisfies Record<
@@ -606,15 +620,7 @@ function mapAppointment(appointment: {
     nickname: string | null;
   };
   starts_at: Date;
-  status:
-    | 'requested'
-    | 'confirmed'
-    | 'checked_in'
-    | 'in_service'
-    | 'ready'
-    | 'completed'
-    | 'cancelled'
-    | 'no_show';
+  status: Appointment['status'];
 }): Appointment {
   return {
     endsAt: appointment.ends_at.toISOString(),
