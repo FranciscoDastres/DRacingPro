@@ -49,3 +49,11 @@ export function getWorkshopMinutes(value: string): number {
   );
   return hour * 60 + minute;
 }
+
+/** Persists the last booked appointment id so the receipt page can recover it. */
+export const LAST_APPOINTMENT_KEY = 'drp_last_appointment';
+
+/** Mirrors the backend ChileanPhoneSchema: +56 9 XXXX XXXX once separators stripped. */
+export function isValidChileanPhone(value: string): boolean {
+  return /^\+569\d{8}$/.test(value.replace(/[\s()-]/g, ''));
+}
