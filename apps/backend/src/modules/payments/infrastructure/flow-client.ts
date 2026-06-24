@@ -85,7 +85,9 @@ export class FlowClient {
   }
 
   async getStatus(token: string): Promise<FlowStatusResult> {
-    const body = await this.post('/payment/getStatus', {
+    // Flow's payment/getStatus is a GET endpoint: the signed params travel in
+    // the query string. Sending them as a POST body returns HTTP 400.
+    const body = await this.get('/payment/getStatus', {
       apiKey: this.config.apiKey,
       token,
     });
@@ -102,20 +104,42 @@ export class FlowClient {
     };
   }
 
+  private sign(params: Record<string, string>): Record<string, string> {
+    return {
+      ...params,
+      s: signFlowParams(params, this.config.secretKey),
+    };
+  }
+
   private async post(
     path: string,
     params: Record<string, string>,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<Record<string, any>> {
-    const signed = {
-      ...params,
-      s: signFlowParams(params, this.config.secretKey),
-    };
     const response = await fetch(`${this.config.apiBase}${path}`, {
-      body: new URLSearchParams(signed).toString(),
+      body: new URLSearchParams(this.sign(params)).toString(),
       headers: { 'content-type': 'application/x-www-form-urlencoded' },
       method: 'POST',
     });
+    return this.parse(response);
+  }
+
+  private async get(
+    path: string,
+    params: Record<string, string>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ): Promise<Record<string, any>> {
+    const query = new URLSearchParams(this.sign(params)).toString();
+    const response = await fetch(`${this.config.apiBase}${path}?${query}`, {
+      method: 'GET',
+    });
+    return this.parse(response);
+  }
+
+  private async parse(
+    response: Response,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ): Promise<Record<string, any>> {
     if (!response.ok) {
       throw new FlowError(`flow_http_${response.status}`);
     }
