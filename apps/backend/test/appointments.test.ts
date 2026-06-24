@@ -93,6 +93,7 @@ describe('appointment routes', () => {
         motorcycleId,
         serviceIds: [serviceId],
         startsAt: slot.startsAt,
+        whatsappPhone: '+56912345678',
       },
       url: '/v1/appointments',
     });
