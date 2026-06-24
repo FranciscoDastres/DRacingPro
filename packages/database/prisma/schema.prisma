@@ -56,14 +56,17 @@ model appointments {
   version                    Int                          @default(1)
   created_at                 DateTime                     @default(now()) @db.Timestamptz(6)
   updated_at                 DateTime                     @default(now()) @db.Timestamptz(6)
+  whatsapp_phone             String?                      @db.VarChar(20)
+  payment_hold_expires_at    DateTime?                    @db.Timestamptz(6)
   appointment_services       appointment_services[]
   appointment_status_history appointment_status_history[]
   users                      users                        @relation(fields: [customer_user_id], references: [id], onUpdate: NoAction)
   motorcycles                motorcycles                  @relation(fields: [motorcycle_id, customer_user_id], references: [id, owner_user_id], onUpdate: NoAction, map: "appointments_motorcycle_owner_fk")
   service_bays               service_bays                 @relation(fields: [service_bay_id], references: [id], onUpdate: NoAction)
-  motorcycle_status_updates  motorcycle_status_updates[]
-  service_reports            service_reports?
   invoices                   invoices?
+  motorcycle_status_updates  motorcycle_status_updates[]
+  payments                   payments[]
+  service_reports            service_reports?
 
   @@index([customer_user_id, starts_at(sort: Desc)], map: "appointments_customer_starts_idx")
   @@index([motorcycle_id, starts_at(sort: Desc)], map: "appointments_motorcycle_idx")
@@ -78,9 +81,9 @@ model service_reports {
   created_by_user_id   String?                @db.Uuid
   created_at           DateTime               @default(now()) @db.Timestamptz(6)
   updated_at           DateTime               @default(now()) @db.Timestamptz(6)
-  appointments         appointments           @relation(fields: [appointment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  users                users?                 @relation(fields: [created_by_user_id], references: [id], onUpdate: NoAction)
   service_report_items service_report_items[]
+  appointments         appointments           @relation(fields: [appointment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users                users?                 @relation(fields: [created_by_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model service_report_items {
@@ -100,19 +103,30 @@ model service_report_items {
 }
 
 model invoices {
-  id              String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  appointment_id  String                 @unique @db.Uuid
-  document_number String                 @unique @db.VarChar(40)
-  amount_cents    Int
-  currency        String                 @default("CLP") @db.Char(3)
-  payment_status  invoice_payment_status @default(pending)
-  issued_at       DateTime               @default(now()) @db.Timestamptz(6)
-  paid_at         DateTime?              @db.Timestamptz(6)
-  created_at      DateTime               @default(now()) @db.Timestamptz(6)
-  updated_at      DateTime               @default(now()) @db.Timestamptz(6)
-  appointments    appointments           @relation(fields: [appointment_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  id                                     String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  appointment_id                         String                 @unique @db.Uuid
+  document_number                        String                 @unique @db.VarChar(40)
+  amount_cents                           Int
+  currency                               String                 @default("CLP") @db.Char(3)
+  payment_status                         invoice_payment_status @default(pending)
+  issued_at                              DateTime               @default(now()) @db.Timestamptz(6)
+  paid_at                                DateTime?              @db.Timestamptz(6)
+  created_at                             DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at                             DateTime               @default(now()) @db.Timestamptz(6)
+  payment_id                             String?                @db.Uuid
+  net_cents                              Int?
+  iva_cents                              Int?
+  total_cents                            Int?
+  emisor_rut                             String?                @db.VarChar(12)
+  receptor_rut                           String?                @db.VarChar(12)
+  document_kind                          String                 @default("comprobante_interno") @db.VarChar(40)
+  sii_status                             String                 @default("not_applicable") @db.VarChar(20)
+  sii_folio                              String?                @db.VarChar(40)
+  appointments                           appointments           @relation(fields: [appointment_id], references: [id], onUpdate: NoAction)
+  payments_invoices_payment_idTopayments payments?              @relation("invoices_payment_idTopayments", fields: [payment_id], references: [id], onUpdate: NoAction)
 
   @@index([payment_status, issued_at(sort: Desc)], map: "invoices_status_issued_idx")
+  @@index([payment_id], map: "invoices_payment_idx")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -270,11 +284,11 @@ model users {
   display_name               String                       @db.VarChar(120)
   avatar_url                 String?
   phone                      String?                      @db.VarChar(32)
-  role                       user_role                    @default(customer)
-  password_hash              String?
+  role                       user_role                    @unique(map: "users_single_admin_idx", where: raw("(role = 'admin'::user_role)")) @default(customer)
   is_active                  Boolean                      @default(true)
   created_at                 DateTime                     @default(now()) @db.Timestamptz(6)
   updated_at                 DateTime                     @default(now()) @db.Timestamptz(6)
+  password_hash              String?
   deleted_at                 DateTime?                    @db.Timestamptz(6)
   appointment_status_history appointment_status_history[]
   appointments               appointments[]
@@ -286,10 +300,44 @@ model users {
   schedule_exceptions        schedule_exceptions[]
   service_reports            service_reports[]
 
-  @@index([deleted_at], map: "users_deleted_at_idx")
+  @@index([deleted_at])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model payment_settings {
+  id                  Boolean      @id @default(true)
+  mode                payment_mode @default(total)
+  deposit_fixed_cents Int          @default(0)
+  deposit_percent     Int          @default(30) @db.SmallInt
+  hold_minutes        Int          @default(30) @db.SmallInt
+  updated_at          DateTime     @default(now()) @db.Timestamptz(6)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model payments {
+  id                                     String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  appointment_id                         String                     @db.Uuid
+  amount_cents                           Int
+  currency                               String                     @default("CLP") @db.Char(3)
+  mode                                   payment_mode
+  flow_token                             String?                    @unique @db.VarChar(120)
+  flow_commerce_order                    String                     @unique @db.VarChar(60)
+  flow_order                             String?                    @db.VarChar(40)
+  status                                 payment_transaction_status @default(created)
+  raw_response                           Json?
+  expires_at                             DateTime?                  @db.Timestamptz(6)
+  paid_at                                DateTime?                  @db.Timestamptz(6)
+  created_at                             DateTime                   @default(now()) @db.Timestamptz(6)
+  updated_at                             DateTime                   @default(now()) @db.Timestamptz(6)
+  invoices_invoices_payment_idTopayments invoices[]                 @relation("invoices_payment_idTopayments")
+  appointments                           appointments               @relation(fields: [appointment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([appointment_id, created_at(sort: Desc)], map: "payments_appointment_idx")
+  @@index([status, expires_at], map: "payments_status_expiry_idx")
 }
 
 enum appointment_status {
+  pending_payment
   requested
   confirmed
   checked_in
@@ -335,4 +383,19 @@ enum recommendation_severity {
 enum invoice_payment_status {
   pending
   paid
+}
+
+enum payment_mode {
+  total
+  deposit_fixed
+  deposit_pct
+}
+
+enum payment_transaction_status {
+  created
+  pending
+  paid
+  failed
+  expired
+  cancelled
 }
