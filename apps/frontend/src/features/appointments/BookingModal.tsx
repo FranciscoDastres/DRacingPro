@@ -2,6 +2,7 @@ import type {
   Appointment,
   AvailabilitySlot,
   Motorcycle,
+  PaymentInitResponse,
   Service,
 } from '@dracing/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -14,6 +15,8 @@ import {
   getNextBookableDate,
   getToday,
   getWorkshopMinutes,
+  isValidChileanPhone,
+  LAST_APPOINTMENT_KEY,
   parseLocalDate,
 } from './appointment-helpers';
 
@@ -43,6 +46,7 @@ export function BookingModal({ onClose, open }: BookingModalProps) {
   const [serviceIds, setServiceIds] = useState<string[]>([]);
   const [date, setDate] = useState(getNextBookableDate());
   const [selectedSlot, setSelectedSlot] = useState('');
+  const [whatsappPhone, setWhatsappPhone] = useState('+569');
 
   // Sign in transparently in local development when there is no session yet.
   useEffect(() => {
@@ -92,18 +96,25 @@ export function BookingModal({ onClose, open }: BookingModalProps) {
   }, [open, user, motorcycles.isSuccess, motorcycles.data, ensureMotorcycle]);
 
   const createAppointment = useMutation({
-    mutationFn: () =>
-      apiClient.post<Appointment>('/v1/appointments', {
-        motorcycleId,
-        serviceIds,
-        startsAt: selectedSlot,
-      }),
-    onSuccess: async () => {
-      setSelectedSlot('');
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['appointments'] }),
-        queryClient.invalidateQueries({ queryKey: ['availability'] }),
-      ]);
+    mutationFn: async () => {
+      const appointment = await apiClient.post<Appointment>(
+        '/v1/appointments',
+        {
+          motorcycleId,
+          serviceIds,
+          startsAt: selectedSlot,
+          whatsappPhone,
+        },
+      );
+      window.localStorage.setItem(LAST_APPOINTMENT_KEY, appointment.id);
+      const { redirectUrl } = await apiClient.post<PaymentInitResponse>(
+        `/v1/appointments/${appointment.id}/payment`,
+        {},
+      );
+      return redirectUrl;
+    },
+    onSuccess: (redirectUrl) => {
+      window.location.assign(redirectUrl);
     },
   });
 
@@ -327,9 +338,28 @@ export function BookingModal({ onClose, open }: BookingModalProps) {
                 </div>
               </dl>
 
+              <div className="mt-4">
+                <label
+                  className="text-muted block text-xs font-semibold"
+                  htmlFor="booking-whatsapp"
+                >
+                  WhatsApp para coordinación
+                </label>
+                <input
+                  autoComplete="tel"
+                  className="border-accent/30 bg-surface mt-2 w-full rounded-xl border px-4 py-2.5 text-sm"
+                  id="booking-whatsapp"
+                  inputMode="tel"
+                  onChange={(event) => setWhatsappPhone(event.target.value)}
+                  placeholder="+56 9 1234 5678"
+                  type="tel"
+                  value={whatsappPhone}
+                />
+              </div>
+
               {createAppointment.isError && (
                 <p className="text-primary mt-4 text-sm" role="alert">
-                  El horario dejó de estar disponible. Elige otro.
+                  No pudimos iniciar el pago. Revisa el horario y tu número.
                 </p>
               )}
 
@@ -339,16 +369,17 @@ export function BookingModal({ onClose, open }: BookingModalProps) {
                   preparingSession ||
                   serviceIds.length === 0 ||
                   !selectedSlot ||
+                  !isValidChileanPhone(whatsappPhone) ||
                   createAppointment.isPending
                 }
                 onClick={() => createAppointment.mutate()}
                 type="button"
               >
                 {createAppointment.isPending
-                  ? 'Reservando…'
+                  ? 'Redirigiendo al pago…'
                   : preparingSession
                     ? 'Preparando…'
-                    : 'Confirmar cita'}
+                    : 'Confirmar y pagar'}
               </button>
             </aside>
           </div>

@@ -102,10 +102,23 @@ export const AvailabilitySlotSchema = z.object({
 export type AvailabilityRequest = z.infer<typeof AvailabilityRequestSchema>;
 export type AvailabilitySlot = z.infer<typeof AvailabilitySlotSchema>;
 
+// Chilean mobile in E.164: +56 9 XXXX XXXX. Spaces, dashes and parentheses are
+// stripped before validation so the UI can format freely.
+export const ChileanPhoneSchema = z
+  .string()
+  .trim()
+  .transform((value) => value.replace(/[\s()-]/g, ''))
+  .pipe(
+    z
+      .string()
+      .regex(/^\+569\d{8}$/, 'Ingresa un número de WhatsApp chileno válido'),
+  );
+
 export const CreateAppointmentSchema = z.object({
   motorcycleId: z.uuid(),
   serviceIds: z.array(z.uuid()).min(1).max(10),
   startsAt: z.iso.datetime(),
+  whatsappPhone: ChileanPhoneSchema,
 });
 
 export type CreateAppointmentInput = z.infer<typeof CreateAppointmentSchema>;
@@ -142,6 +155,7 @@ export const AppointmentSchema = z.object({
   startsAt: z.iso.datetime(),
   total: z.number().int().nonnegative(),
   status: z.enum([
+    'pending_payment',
     'requested',
     'confirmed',
     'checked_in',
@@ -379,9 +393,76 @@ export const InvoiceSchema = z.object({
   paidAt: z.iso.datetime().nullable(),
   paymentStatus: z.enum(['pending', 'paid']),
   services: z.array(z.string()),
+  // Tax breakdown prepared for a future SII integration (nullable for legacy
+  // invoices issued before payments were introduced).
+  netAmount: z.number().int().nonnegative().nullable(),
+  ivaAmount: z.number().int().nonnegative().nullable(),
+  documentKind: z.string(),
+  siiStatus: z.string(),
+  siiFolio: z.string().nullable(),
 });
 
 export type Invoice = z.infer<typeof InvoiceSchema>;
+
+// --- Payments (Flow) ---
+
+export const PaymentModeSchema = z.enum([
+  'total',
+  'deposit_fixed',
+  'deposit_pct',
+]);
+
+export type PaymentMode = z.infer<typeof PaymentModeSchema>;
+
+export const PaymentTransactionStatusSchema = z.enum([
+  'created',
+  'pending',
+  'paid',
+  'failed',
+  'expired',
+  'cancelled',
+]);
+
+export type PaymentTransactionStatus = z.infer<
+  typeof PaymentTransactionStatusSchema
+>;
+
+// Response of POST /v1/appointments/:id/payment — the frontend only ever
+// receives a URL to redirect to; the amount is computed server-side.
+export const PaymentInitResponseSchema = z.object({
+  redirectUrl: z.url(),
+});
+
+export type PaymentInitResponse = z.infer<typeof PaymentInitResponseSchema>;
+
+// Read model for the return page that reconstructs the receipt after payment.
+export const PaymentStatusSchema = z.object({
+  appointmentId: z.uuid(),
+  amount: z.number().int().nonnegative(),
+  currency: z.string().length(3),
+  status: PaymentTransactionStatusSchema,
+  invoiceId: z.uuid().nullable(),
+});
+
+export type PaymentStatusView = z.infer<typeof PaymentStatusSchema>;
+
+export const PaymentSettingsSchema = z.object({
+  mode: PaymentModeSchema,
+  depositFixed: z.number().int().nonnegative(),
+  depositPercent: z.number().int().min(1).max(100),
+  holdMinutes: z.number().int().min(1).max(1440),
+});
+
+export type PaymentSettings = z.infer<typeof PaymentSettingsSchema>;
+
+export const UpdatePaymentSettingsSchema = PaymentSettingsSchema.partial().refine(
+  (value) => Object.keys(value).length > 0,
+  'At least one field is required',
+);
+
+export type UpdatePaymentSettingsInput = z.infer<
+  typeof UpdatePaymentSettingsSchema
+>;
 
 export const CustomerDashboardSchema = z.object({
   activeAppointment: AppointmentSchema.nullable(),

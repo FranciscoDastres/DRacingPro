@@ -41,6 +41,11 @@ const BillingPage = lazy(() =>
     default: m.BillingPage,
   })),
 );
+const PaymentReturnPage = lazy(() =>
+  import('../features/payments/PaymentReturnPage').then((m) => ({
+    default: m.PaymentReturnPage,
+  })),
+);
 const AdminDashboardPage = lazy(() =>
   import('../features/admin/AdminDashboardPage').then((m) => ({
     default: m.AdminDashboardPage,
@@ -85,6 +90,7 @@ export const router = createBrowserRouter([
           { element: <AppointmentTimelinePage />, path: 'appointments/:id' },
           { element: <ServiceHistoryPage />, path: 'history' },
           { element: <BillingPage />, path: 'billing' },
+          { element: <PaymentReturnPage />, path: 'pago/retorno' },
           { element: <ServicesPage />, path: 'services' },
           {
             element: <AdminRoute />,

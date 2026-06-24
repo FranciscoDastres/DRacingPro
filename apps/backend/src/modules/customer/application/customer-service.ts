@@ -218,15 +218,25 @@ export class CustomerService {
       });
 
       const issuedAt = new Date();
-      const invoice = await transaction.invoices.create({
-        data: {
-          amount_cents: appointmentTotal(appointment.appointment_services),
+      const amountCents = appointmentTotal(appointment.appointment_services);
+      // A booking deposit may have already created the invoice, so upsert to
+      // avoid colliding with the unique appointment_id constraint.
+      const invoice = await transaction.invoices.upsert({
+        create: {
+          amount_cents: amountCents,
           appointment_id: appointmentId,
           currency: appointment.appointment_services[0]?.currency ?? 'CLP',
           document_number: `DRP-${issuedAt.getFullYear()}-${appointmentId.slice(0, 8).toUpperCase()}`,
           paid_at: input.paymentStatus === 'paid' ? issuedAt : null,
           payment_status: input.paymentStatus,
         },
+        update: {
+          amount_cents: amountCents,
+          paid_at: input.paymentStatus === 'paid' ? issuedAt : null,
+          payment_status: input.paymentStatus,
+          updated_at: issuedAt,
+        },
+        where: { appointment_id: appointmentId },
       });
 
       await transaction.appointments.update({
@@ -400,6 +410,11 @@ function mapInvoice(invoice: {
   issued_at: Date;
   paid_at: Date | null;
   payment_status: 'pending' | 'paid';
+  net_cents: number | null;
+  iva_cents: number | null;
+  document_kind: string;
+  sii_status: string;
+  sii_folio: string | null;
   appointments: {
     appointment_services: Array<{ service_name_snapshot: string }>;
   };
@@ -408,14 +423,19 @@ function mapInvoice(invoice: {
     amount: invoice.amount_cents,
     appointmentId: invoice.appointment_id,
     currency: invoice.currency,
+    documentKind: invoice.document_kind,
     documentNumber: invoice.document_number,
     id: invoice.id,
     issuedAt: invoice.issued_at.toISOString(),
+    ivaAmount: invoice.iva_cents,
+    netAmount: invoice.net_cents,
     paidAt: invoice.paid_at?.toISOString() ?? null,
     paymentStatus: invoice.payment_status,
     services: invoice.appointments.appointment_services.map(
       (service) => service.service_name_snapshot,
     ),
+    siiFolio: invoice.sii_folio,
+    siiStatus: invoice.sii_status,
   };
 }
 

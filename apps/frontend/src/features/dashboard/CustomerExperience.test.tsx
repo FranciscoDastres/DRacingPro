@@ -33,12 +33,17 @@ const invoices: Invoice[] = [
     amount: 24990,
     appointmentId,
     currency: 'CLP',
+    documentKind: 'comprobante_interno',
     documentNumber: 'DRP-2026-78C865CA',
     id: invoiceId,
     issuedAt: '2026-06-23T12:00:00.000Z',
+    ivaAmount: null,
+    netAmount: null,
     paidAt: null,
     paymentStatus: 'pending',
     services: ['Mantención básica'],
+    siiFolio: null,
+    siiStatus: 'not_applicable',
   },
 ];
 const history: ServiceHistoryRecord[] = [

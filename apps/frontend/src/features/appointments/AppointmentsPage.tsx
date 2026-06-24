@@ -2,6 +2,7 @@ import type {
   Appointment,
   AvailabilitySlot,
   Motorcycle,
+  PaymentInitResponse,
   Service,
 } from '@dracing/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -19,6 +20,8 @@ import {
   getNextBookableDate,
   getToday,
   getWorkshopMinutes,
+  isValidChileanPhone,
+  LAST_APPOINTMENT_KEY,
   parseLocalDate,
 } from './appointment-helpers';
 
@@ -39,6 +42,7 @@ const slotTimeFormatter = new Intl.DateTimeFormat('es-CL', {
 });
 
 const UPCOMING_STATUSES: Appointment['status'][] = [
+  'pending_payment',
   'requested',
   'confirmed',
   'checked_in',
@@ -46,11 +50,13 @@ const UPCOMING_STATUSES: Appointment['status'][] = [
   'ready',
 ];
 
+
 export function AppointmentsPage() {
   const queryClient = useQueryClient();
   const [serviceIds, setServiceIds] = useState<string[]>([]);
   const [date, setDate] = useState(getNextBookableDate());
   const [selectedSlot, setSelectedSlot] = useState('');
+  const [whatsappPhone, setWhatsappPhone] = useState('+569');
   const [cancellingAppointmentId, setCancellingAppointmentId] = useState<
     string | null
   >(null);
@@ -122,19 +128,29 @@ export function AppointmentsPage() {
       ),
     queryKey: ['availability', date, serviceIds],
   });
+  // Atomic flow: create the appointment (held as pending_payment), then
+  // immediately open the Flow order and redirect. The appointment id is kept in
+  // localStorage so the receipt can be reconstructed when the user returns.
   const createAppointment = useMutation({
-    mutationFn: () =>
-      apiClient.post<Appointment>('/v1/appointments', {
-        motorcycleId,
-        serviceIds,
-        startsAt: selectedSlot,
-      }),
-    onSuccess: async () => {
-      setSelectedSlot('');
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['appointments'] }),
-        queryClient.invalidateQueries({ queryKey: ['availability'] }),
-      ]);
+    mutationFn: async () => {
+      const appointment = await apiClient.post<Appointment>(
+        '/v1/appointments',
+        {
+          motorcycleId,
+          serviceIds,
+          startsAt: selectedSlot,
+          whatsappPhone,
+        },
+      );
+      window.localStorage.setItem(LAST_APPOINTMENT_KEY, appointment.id);
+      const { redirectUrl } = await apiClient.post<PaymentInitResponse>(
+        `/v1/appointments/${appointment.id}/payment`,
+        {},
+      );
+      return redirectUrl;
+    },
+    onSuccess: (redirectUrl) => {
+      window.location.assign(redirectUrl);
     },
   });
   const cancelAppointment = useMutation({
@@ -385,24 +401,33 @@ export function AppointmentsPage() {
               </dd>
             </div>
           </dl>
-          {createAppointment.isSuccess && (
-            <div
-              className="border-success/30 bg-success/10 mt-5 rounded-xl border p-4"
-              role="status"
+          <div className="mt-5">
+            <label
+              className="text-muted block text-xs font-semibold"
+              htmlFor="whatsapp-phone"
             >
-              <p className="text-success text-sm font-bold">
-                Solicitud enviada
+              WhatsApp para coordinación
+            </label>
+            <input
+              autoComplete="tel"
+              className="border-accent/30 bg-surface mt-2 w-full rounded-xl border px-4 py-2.5 text-sm"
+              id="whatsapp-phone"
+              inputMode="tel"
+              onChange={(event) => setWhatsappPhone(event.target.value)}
+              placeholder="+56 9 1234 5678"
+              type="tel"
+              value={whatsappPhone}
+            />
+            {!isValidChileanPhone(whatsappPhone) && whatsappPhone.length > 4 && (
+              <p className="text-primary mt-1 text-xs">
+                Ingresa un número chileno válido (+56 9 XXXX XXXX).
               </p>
-              <p className="text-muted mt-1 text-xs">
-                {dateFormatter.format(
-                  new Date(createAppointment.data.startsAt),
-                )}
-              </p>
-            </div>
-          )}
+            )}
+          </div>
           {createAppointment.isError && (
             <p className="text-primary mt-4 text-sm" role="alert">
-              El horario dejó de estar disponible. Selecciona otro.
+              No pudimos iniciar el pago. Revisa el horario y tu número, e
+              inténtalo nuevamente.
             </p>
           )}
           <button
@@ -411,13 +436,19 @@ export function AppointmentsPage() {
               !motorcycleId ||
               serviceIds.length === 0 ||
               !selectedSlot ||
+              !isValidChileanPhone(whatsappPhone) ||
               createAppointment.isPending
             }
             onClick={() => createAppointment.mutate()}
             type="button"
           >
-            {createAppointment.isPending ? 'Reservando…' : 'Confirmar cita'}
+            {createAppointment.isPending
+              ? 'Redirigiendo al pago…'
+              : 'Confirmar y pagar'}
           </button>
+          <p className="text-muted mt-3 text-center text-xs">
+            Serás redirigido a Flow para completar el pago de forma segura.
+          </p>
         </aside>
       </div>
 

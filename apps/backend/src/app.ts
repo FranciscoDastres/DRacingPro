@@ -26,6 +26,10 @@ import {
   type MotorcycleRoutesOptions,
 } from './modules/motorcycles/presentation/routes.js';
 import {
+  paymentRoutes,
+  type PaymentRoutesOptions,
+} from './modules/payments/presentation/routes.js';
+import {
   serviceRoutes,
   type ServiceRoutesOptions,
 } from './modules/services/presentation/routes.js';
@@ -44,6 +48,7 @@ export interface BuildAppOptions {
   customer?: CustomerRoutesOptions;
   logger?: boolean;
   motorcycles?: MotorcycleRoutesOptions;
+  payments?: PaymentRoutesOptions;
   services?: ServiceRoutesOptions;
   workshopAdmin?: WorkshopAdminRoutesOptions;
 }
@@ -58,6 +63,7 @@ export async function buildApp({
   customer,
   logger = true,
   motorcycles,
+  payments,
   services,
   workshopAdmin,
 }: BuildAppOptions): Promise<FastifyInstance> {
@@ -95,6 +101,9 @@ export async function buildApp({
   }
   if (appointments) {
     await app.register(appointmentRoutes, { ...appointments, prefix: '/v1' });
+  }
+  if (payments) {
+    await app.register(paymentRoutes, { ...payments, prefix: '/v1' });
   }
   if (motorcycles) {
     await app.register(motorcycleRoutes, {

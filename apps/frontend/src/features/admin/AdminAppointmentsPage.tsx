@@ -9,7 +9,20 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { Icon } from '../../components/ui/Icon';
 import { Modal } from '../../components/ui/Modal';
 import { PageHeader } from '../../components/ui/PageHeader';
+import {
+  AGENDA_BUCKET_LABEL,
+  AGENDA_BUCKET_OF,
+  type AgendaBucket,
+  APPOINTMENT_STATUS_META,
+} from '../../components/ui/status-meta';
 import { apiClient } from '../../lib/api-client';
+
+const AGENDA_BUCKETS: AgendaBucket[] = [
+  'pending',
+  'in_progress',
+  'completed',
+  'cancelled',
+];
 
 const dateFormatter = new Intl.DateTimeFormat('es-CL', {
   dateStyle: 'medium',
@@ -29,6 +42,7 @@ type AgendaView = 'day' | 'week';
 export function AdminAppointmentsPage() {
   const queryClient = useQueryClient();
   const [agendaView, setAgendaView] = useState<AgendaView>('day');
+  const [bucket, setBucket] = useState<AgendaBucket>('pending');
   const [selectedDate, setSelectedDate] = useState(getWorkshopToday());
   const [closingAppointment, setClosingAppointment] =
     useState<AdminAppointment | null>(null);
@@ -187,6 +201,30 @@ export function AdminAppointmentsPage() {
         </p>
       </section>
 
+      <div
+        aria-label="Secciones de la agenda"
+        className="mb-5 flex flex-wrap gap-2"
+        role="group"
+      >
+        {AGENDA_BUCKETS.map((item) => {
+          const count =
+            appointments.data?.filter(
+              (appointment) => AGENDA_BUCKET_OF[appointment.status] === item,
+            ).length ?? 0;
+          return (
+            <button
+              aria-pressed={bucket === item}
+              className={`rounded-lg px-4 py-2 text-xs font-bold transition ${bucket === item ? 'bg-primary text-white' : 'bg-surface text-muted hover:text-foreground border border-white/8'}`}
+              key={item}
+              onClick={() => setBucket(item)}
+              type="button"
+            >
+              {AGENDA_BUCKET_LABEL[item]} ({count})
+            </button>
+          );
+        })}
+      </div>
+
       {appointments.isError && (
         <p className="border-primary/30 bg-primary/10 rounded-xl border p-4 text-sm">
           No fue posible cargar la agenda.
@@ -204,7 +242,11 @@ export function AdminAppointmentsPage() {
       )}
 
       <div className="space-y-3">
-        {appointments.data?.map((appointment) => {
+        {appointments.data
+          ?.filter(
+            (appointment) => AGENDA_BUCKET_OF[appointment.status] === bucket,
+          )
+          .map((appointment) => {
           const cancelled = ['cancelled', 'no_show'].includes(
             appointment.status,
           );
@@ -231,16 +273,8 @@ export function AdminAppointmentsPage() {
                     <h2 className="truncate text-base font-bold tracking-normal normal-case">
                       {appointment.customer.displayName}
                     </h2>
-                    <Badge
-                      tone={
-                        cancelled ? 'danger' : requested ? 'warning' : 'success'
-                      }
-                    >
-                      {cancelled
-                        ? 'Cancelada'
-                        : requested
-                          ? 'Por confirmar'
-                          : 'Confirmada'}
+                    <Badge tone={APPOINTMENT_STATUS_META[appointment.status].tone}>
+                      {APPOINTMENT_STATUS_META[appointment.status].label}
                     </Badge>
                   </div>
                   <p className="text-muted mt-1 truncate text-xs">
@@ -250,6 +284,16 @@ export function AdminAppointmentsPage() {
                   </p>
                   <p className="text-muted mt-1 text-xs">
                     {dateFormatter.format(new Date(appointment.startsAt))}
+                  </p>
+                  <p className="text-muted mt-1 flex flex-wrap gap-x-3 text-xs">
+                    <span className="inline-flex items-center gap-1">
+                      <Icon className="size-3.5" name="mail" />
+                      {appointment.customer.email}
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <Icon className="size-3.5" name="phone" />
+                      {appointment.customer.phone ?? 'Sin teléfono'}
+                    </span>
                   </p>
                 </div>
 

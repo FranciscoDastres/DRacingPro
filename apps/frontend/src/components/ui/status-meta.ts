@@ -1,6 +1,7 @@
 import { type BadgeTone } from './Badge';
 
 type AppointmentStatus =
+  | 'pending_payment'
   | 'requested'
   | 'confirmed'
   | 'checked_in'
@@ -20,8 +21,32 @@ export const APPOINTMENT_STATUS_META: Record<
   confirmed: { label: 'Confirmada', tone: 'primary' },
   in_service: { label: 'En servicio', tone: 'warning' },
   no_show: { label: 'No asistió', tone: 'danger' },
+  pending_payment: { label: 'Pendiente de pago', tone: 'warning' },
   ready: { label: 'Lista para retiro', tone: 'success' },
   requested: { label: 'Solicitada', tone: 'neutral' },
+};
+
+// Buckets used by the agenda so cancelled/no-show appointments don't clutter
+// the active workflow (see AdminAppointmentsPage).
+export type AgendaBucket = 'pending' | 'in_progress' | 'completed' | 'cancelled';
+
+export const AGENDA_BUCKET_OF: Record<AppointmentStatus, AgendaBucket> = {
+  cancelled: 'cancelled',
+  checked_in: 'in_progress',
+  completed: 'completed',
+  confirmed: 'pending',
+  in_service: 'in_progress',
+  no_show: 'cancelled',
+  pending_payment: 'pending',
+  ready: 'in_progress',
+  requested: 'pending',
+};
+
+export const AGENDA_BUCKET_LABEL: Record<AgendaBucket, string> = {
+  cancelled: 'Canceladas',
+  completed: 'Completadas',
+  in_progress: 'En proceso',
+  pending: 'Pendientes',
 };
 
 type ProgressStatus =
