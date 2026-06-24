@@ -8,6 +8,8 @@ import { SessionService } from './modules/auth/application/session-service.js';
 import { CustomerService } from './modules/customer/application/customer-service.js';
 import { GoogleOidcClient } from './modules/auth/infrastructure/google-oidc.js';
 import { PrismaAuthRepository } from './modules/auth/infrastructure/prisma-auth-repository.js';
+import { PaymentService } from './modules/payments/application/payment-service.js';
+import { FlowClient } from './modules/payments/infrastructure/flow-client.js';
 import { PrismaMotorcycleRepository } from './modules/motorcycles/infrastructure/prisma-motorcycle-repository.js';
 import { PrismaServiceRepository } from './modules/services/infrastructure/prisma-service-repository.js';
 import { WorkshopAdminService } from './modules/workshop/application/workshop-admin-service.js';
@@ -19,6 +21,21 @@ const google = createGoogleClient();
 const appointmentService = new AppointmentService(database);
 const customerService = new CustomerService(database);
 const motorcycleRepository = new PrismaMotorcycleRepository(database);
+const flowClient = new FlowClient({
+  apiBase: environment.FLOW_API_BASE,
+  apiKey: environment.FLOW_API_KEY ?? '',
+  secretKey: environment.FLOW_SECRET_KEY ?? '',
+});
+const paymentService = new PaymentService(database, flowClient, {
+  currency: 'CLP',
+  subjectPrefix: 'Reserva cita DRacing',
+  urlConfirmation:
+    environment.FLOW_CONFIRM_URL ??
+    `${environment.API_ORIGIN}/v1/payments/flow/confirm`,
+  urlReturn:
+    environment.FLOW_RETURN_URL ??
+    `${environment.API_ORIGIN}/v1/payments/flow/return`,
+});
 const app = await buildApp({
   admin: {
     admin: new AdminService(database),
@@ -53,6 +70,12 @@ const app = await buildApp({
     repository: motorcycleRepository,
     sessions,
   },
+  payments: {
+    appOrigin: environment.APP_ORIGIN,
+    payments: paymentService,
+    returnPagePath: '/app/pago/retorno',
+    sessions,
+  },
   services: {
     repository: new PrismaServiceRepository(database),
   },
@@ -63,7 +86,24 @@ const app = await buildApp({
   },
 });
 
+// Periodically release slots whose payment hold elapsed without confirmation.
+const EXPIRY_INTERVAL_MS = 5 * 60_000;
+const expiryTimer = setInterval(() => {
+  paymentService
+    .expireStaleHolds()
+    .then((released) => {
+      if (released > 0) {
+        app.log.info({ released }, 'Released expired payment holds');
+      }
+    })
+    .catch((error: unknown) => {
+      app.log.error({ err: error }, 'Failed to expire payment holds');
+    });
+}, EXPIRY_INTERVAL_MS);
+expiryTimer.unref();
+
 app.addHook('onClose', async () => {
+  clearInterval(expiryTimer);
   await database.$disconnect();
 });
 
