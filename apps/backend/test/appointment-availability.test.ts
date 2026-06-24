@@ -92,6 +92,7 @@ describe('AppointmentService availability', () => {
         motorcycleId,
         serviceIds: [serviceId],
         startsAt: new Date(requestedStart).toISOString(),
+        whatsappPhone: '+56912345678',
       }),
     ).rejects.toBeInstanceOf(AppointmentConflictError);
 
