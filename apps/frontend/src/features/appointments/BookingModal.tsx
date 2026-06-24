@@ -12,6 +12,7 @@ import { apiClient } from '../../lib/api-client';
 import { useAuth } from '../auth/auth-context';
 import { AppointmentCalendar } from './AppointmentCalendar';
 import {
+  getMaxBookableDate,
   getNextBookableDate,
   getToday,
   getWorkshopMinutes,
@@ -131,6 +132,10 @@ export function BookingModal({ onClose, open }: BookingModalProps) {
     (total, service) => total + service.durationMinutes,
     0,
   );
+  const estimatedReadyAt =
+    selectedSlot && totalMinutes > 0
+      ? new Date(new Date(selectedSlot).getTime() + totalMinutes * 60_000)
+      : null;
   const availableSlots = availability.data ?? [];
   const morningSlots = availableSlots.filter(
     (slot) => getWorkshopMinutes(slot.startsAt) < 14 * 60,
@@ -243,6 +248,7 @@ export function BookingModal({ onClose, open }: BookingModalProps) {
 
                 <div className="mt-4 grid gap-5 md:grid-cols-[minmax(260px,.85fr)_1.15fr]">
                   <AppointmentCalendar
+                    maxDate={getMaxBookableDate()}
                     minDate={getToday()}
                     onChange={(nextDate) => {
                       setDate(nextDate);
@@ -330,6 +336,14 @@ export function BookingModal({ onClose, open }: BookingModalProps) {
                   <dt className="text-muted">Duración</dt>
                   <dd>{totalMinutes} min</dd>
                 </div>
+                {estimatedReadyAt && (
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-muted">Lista aprox.</dt>
+                    <dd className="font-semibold">
+                      {slotTimeFormatter.format(estimatedReadyAt)}
+                    </dd>
+                  </div>
+                )}
                 <div className="flex justify-between gap-3 border-t border-white/10 pt-2">
                   <dt className="font-semibold">Total</dt>
                   <dd className="text-primary font-black">

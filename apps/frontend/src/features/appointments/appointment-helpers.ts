@@ -35,6 +35,16 @@ export function getNextBookableDate(): string {
   return formatLocalDate(nextDate);
 }
 
+/**
+ * The furthest bookable day: 31 December of next year as `YYYY-MM-DD`.
+ * Keeps the calendar within the current and following year so customers can
+ * not navigate to arbitrary far-future dates.
+ */
+export function getMaxBookableDate(): string {
+  const now = new Date();
+  return `${now.getFullYear() + 1}-12-31`;
+}
+
 /** Minutes since midnight for an ISO instant, in the workshop timezone. */
 export function getWorkshopMinutes(value: string): number {
   const parts = new Intl.DateTimeFormat('en-GB', {

@@ -51,6 +51,9 @@ const environmentSchema = z
       (value) => (value === '' ? undefined : value),
       z.url().optional(),
     ),
+    // WhatsApp coordination provider. Only 'noop' is implemented today; future
+    // providers (e.g. 'twilio') are selected here without touching call sites.
+    WHATSAPP_PROVIDER: optionalString,
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== 'production') return;

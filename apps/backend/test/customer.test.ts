@@ -1,6 +1,7 @@
 import type {
   CustomerDashboard,
   Invoice,
+  ReportPreset,
   ServiceHistoryRecord,
 } from '@dracing/contracts';
 
@@ -35,6 +36,14 @@ const dashboard: CustomerDashboard = {
   unpaidInvoices: 1,
 };
 const history: ServiceHistoryRecord[] = [];
+const reportPreset: ReportPreset = {
+  description: 'Cambio de aceite de motor y filtro.',
+  id: 'a1b2c3d4-0000-4000-8000-000000000001',
+  kind: 'performed',
+  severity: null,
+  title: 'Cambio de aceite',
+  usageCount: 3,
+};
 
 describe('customer experience routes', () => {
   it('returns dashboard, history, invoices and an authenticated PDF', async () => {
@@ -89,6 +98,52 @@ describe('customer experience routes', () => {
     expect(completeAppointmentWork).toHaveBeenCalled();
     await app.close();
   });
+
+  it('lists technical-report presets filtered by kind for an admin', async () => {
+    const listReportPresets = vi.fn(async () => [reportPreset]);
+    const app = await createCustomerApp(true, { listReportPresets });
+    const response = await app.inject({
+      headers: { cookie: 'drp_session=test-session' },
+      method: 'GET',
+      url: '/v1/admin/report-presets?kind=performed',
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual([reportPreset]);
+    expect(listReportPresets).toHaveBeenCalledWith('performed');
+    await app.close();
+  });
+
+  it('rejects preset listing for non-admins', async () => {
+    const app = await createCustomerApp(false);
+    const response = await app.inject({
+      headers: { cookie: 'drp_session=test-session' },
+      method: 'GET',
+      url: '/v1/admin/report-presets',
+    });
+    expect(response.statusCode).toBe(403);
+    await app.close();
+  });
+
+  it('saves a particular case as a reusable preset (admin + trusted origin)', async () => {
+    const createReportPreset = vi.fn(async () => reportPreset);
+    const app = await createCustomerApp(true, { createReportPreset });
+    const response = await app.inject({
+      headers: {
+        cookie: 'drp_session=test-session',
+        origin: 'http://localhost:5173',
+      },
+      method: 'POST',
+      payload: {
+        description: 'Cambio de aceite de motor y filtro.',
+        kind: 'performed',
+        title: 'Cambio de aceite',
+      },
+      url: '/v1/admin/report-presets',
+    });
+    expect(response.statusCode).toBe(201);
+    expect(createReportPreset).toHaveBeenCalled();
+    await app.close();
+  });
 });
 
 async function createCustomerApp(
@@ -107,9 +162,11 @@ async function createCustomerApp(
           invoiceId: invoice.id,
           reportId: invoice.id,
         }),
+        createReportPreset: async () => reportPreset,
         getDashboard: async () => dashboard,
         listHistory: async () => history,
         listInvoices: async () => [invoice],
+        listReportPresets: async () => [reportPreset],
         renderInvoicePdf: async () => ({
           buffer: Buffer.from('%PDF-test'),
           filename: 'comprobante.pdf',

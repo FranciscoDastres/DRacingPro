@@ -1,8 +1,11 @@
 import type {
   Appointment,
   CompleteAppointmentWorkInput,
+  CreateReportPresetInput,
   CustomerDashboard,
   Invoice,
+  ReportPreset,
+  ReportPresetKind,
   ServiceHistoryRecord,
 } from '@dracing/contracts';
 import type { DatabaseClient } from '@dracing/database';
@@ -265,6 +268,46 @@ export class CustomerService {
     });
   }
 
+  /** Active technical-report presets, most used first, optionally by kind. */
+  async listReportPresets(kind?: ReportPresetKind): Promise<ReportPreset[]> {
+    const presets = await this.database.service_report_presets.findMany({
+      orderBy: [{ usage_count: 'desc' }, { title: 'asc' }],
+      where: { is_active: true, ...(kind ? { kind } : {}) },
+    });
+    return presets.map(mapReportPreset);
+  }
+
+  /**
+   * Save a particular case as a reusable preset. Dedupes by (kind, title): if
+   * it already exists we refresh the text, reactivate it and bump usage_count
+   * so popular answers float to the top of the selector.
+   */
+  async createReportPreset(
+    adminUserId: string,
+    input: CreateReportPresetInput,
+  ): Promise<ReportPreset> {
+    const severity =
+      input.kind === 'recommendation' ? (input.severity ?? 'info') : null;
+    const preset = await this.database.service_report_presets.upsert({
+      create: {
+        created_by_user_id: adminUserId,
+        description: input.description,
+        kind: input.kind,
+        severity,
+        title: input.title,
+      },
+      update: {
+        description: input.description,
+        is_active: true,
+        severity,
+        updated_at: new Date(),
+        usage_count: { increment: 1 },
+      },
+      where: { kind_title: { kind: input.kind, title: input.title } },
+    });
+    return mapReportPreset(preset);
+  }
+
   async renderInvoicePdf(
     customerUserId: string,
     invoiceId: string,
@@ -360,6 +403,7 @@ function mapAppointment(appointment: {
   };
   starts_at: Date;
   status: Appointment['status'];
+  whatsapp_phone: string | null;
 }): Appointment {
   return {
     endsAt: appointment.ends_at.toISOString(),
@@ -377,6 +421,25 @@ function mapAppointment(appointment: {
     startsAt: appointment.starts_at.toISOString(),
     status: appointment.status,
     total: appointmentTotal(appointment.appointment_services),
+    whatsappPhone: appointment.whatsapp_phone,
+  };
+}
+
+function mapReportPreset(preset: {
+  description: string;
+  id: string;
+  kind: ReportPreset['kind'];
+  severity: ReportPreset['severity'];
+  title: string;
+  usage_count: number;
+}): ReportPreset {
+  return {
+    description: preset.description,
+    id: preset.id,
+    kind: preset.kind,
+    severity: preset.severity,
+    title: preset.title,
+    usageCount: preset.usage_count,
   };
 }
 

@@ -15,18 +15,21 @@ const dayFormatter = new Intl.DateTimeFormat('es-CL', {
 const weekdayLabels = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
 interface AppointmentCalendarProps {
+  maxDate?: string;
   minDate: string;
   onChange: (date: string) => void;
   value: string;
 }
 
 export function AppointmentCalendar({
+  maxDate,
   minDate,
   onChange,
   value,
 }: AppointmentCalendarProps) {
   const selectedDate = parseLocalDate(value);
   const minimumDate = parseLocalDate(minDate);
+  const maximumDate = maxDate ? parseLocalDate(maxDate) : null;
   const [visibleMonth, setVisibleMonth] = useState(() =>
     startOfMonth(selectedDate),
   );
@@ -34,6 +37,10 @@ export function AppointmentCalendar({
   const days = useMemo(() => buildMonthDays(visibleMonth), [visibleMonth]);
   const previousMonthDisabled =
     startOfMonth(visibleMonth).getTime() <= startOfMonth(minimumDate).getTime();
+  const nextMonthDisabled = maximumDate
+    ? startOfMonth(visibleMonth).getTime() >=
+      startOfMonth(maximumDate).getTime()
+    : false;
 
   return (
     <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#0d0d0d]">
@@ -55,7 +62,8 @@ export function AppointmentCalendar({
         </p>
         <button
           aria-label="Mes siguiente"
-          className="hover:border-primary hover:text-primary grid size-10 place-items-center rounded-full border border-white/10 text-lg transition"
+          className="hover:border-primary hover:text-primary grid size-10 place-items-center rounded-full border border-white/10 text-lg transition disabled:cursor-not-allowed disabled:opacity-25"
+          disabled={nextMonthDisabled}
           onClick={() => setVisibleMonth(addMonths(visibleMonth, 1))}
           type="button"
         >
@@ -82,8 +90,11 @@ export function AppointmentCalendar({
           const isoDate = formatLocalDate(day);
           const isSelected = isoDate === value;
           const isPast = day.getTime() < startOfDay(minimumDate).getTime();
+          const isBeyondMax = maximumDate
+            ? day.getTime() > startOfDay(maximumDate).getTime()
+            : false;
           const isSunday = day.getDay() === 0;
-          const disabled = isPast || isSunday;
+          const disabled = isPast || isBeyondMax || isSunday;
 
           return (
             <button

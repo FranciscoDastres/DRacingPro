@@ -17,6 +17,7 @@ import { Tabs } from '../../components/ui/Tabs';
 import { apiClient } from '../../lib/api-client';
 import { AppointmentCalendar } from './AppointmentCalendar';
 import {
+  getMaxBookableDate,
   getNextBookableDate,
   getToday,
   getWorkshopMinutes,
@@ -49,7 +50,6 @@ const UPCOMING_STATUSES: Appointment['status'][] = [
   'in_service',
   'ready',
 ];
-
 
 export function AppointmentsPage() {
   const queryClient = useQueryClient();
@@ -296,6 +296,7 @@ export function AppointmentsPage() {
 
             <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(290px,.8fr)_1.2fr]">
               <AppointmentCalendar
+                maxDate={getMaxBookableDate()}
                 minDate={getToday()}
                 onChange={(nextDate) => {
                   setDate(nextDate);
@@ -418,11 +419,12 @@ export function AppointmentsPage() {
               type="tel"
               value={whatsappPhone}
             />
-            {!isValidChileanPhone(whatsappPhone) && whatsappPhone.length > 4 && (
-              <p className="text-primary mt-1 text-xs">
-                Ingresa un número chileno válido (+56 9 XXXX XXXX).
-              </p>
-            )}
+            {!isValidChileanPhone(whatsappPhone) &&
+              whatsappPhone.length > 4 && (
+                <p className="text-primary mt-1 text-xs">
+                  Ingresa un número chileno válido (+56 9 XXXX XXXX).
+                </p>
+              )}
           </div>
           {createAppointment.isError && (
             <p className="text-primary mt-4 text-sm" role="alert">
@@ -620,6 +622,7 @@ export function AppointmentsPage() {
                   <div className="bg-background basis-full rounded-xl border border-white/10 p-4 text-left">
                     <div className="grid gap-5 lg:grid-cols-[280px_1fr]">
                       <AppointmentCalendar
+                        maxDate={getMaxBookableDate()}
                         minDate={getToday()}
                         onChange={(nextDate) => {
                           setRescheduleDate(nextDate);

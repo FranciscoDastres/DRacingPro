@@ -8,6 +8,7 @@ import { SessionService } from './modules/auth/application/session-service.js';
 import { CustomerService } from './modules/customer/application/customer-service.js';
 import { GoogleOidcClient } from './modules/auth/infrastructure/google-oidc.js';
 import { PrismaAuthRepository } from './modules/auth/infrastructure/prisma-auth-repository.js';
+import { createWhatsAppNotifier } from './modules/notifications/whatsapp-notifier.js';
 import { PaymentService } from './modules/payments/application/payment-service.js';
 import { FlowClient } from './modules/payments/infrastructure/flow-client.js';
 import { PrismaMotorcycleRepository } from './modules/motorcycles/infrastructure/prisma-motorcycle-repository.js';
@@ -26,16 +27,21 @@ const flowClient = new FlowClient({
   apiKey: environment.FLOW_API_KEY ?? '',
   secretKey: environment.FLOW_SECRET_KEY ?? '',
 });
-const paymentService = new PaymentService(database, flowClient, {
-  currency: 'CLP',
-  subjectPrefix: 'Reserva cita DRacing',
-  urlConfirmation:
-    environment.FLOW_CONFIRM_URL ??
-    `${environment.API_ORIGIN}/v1/payments/flow/confirm`,
-  urlReturn:
-    environment.FLOW_RETURN_URL ??
-    `${environment.API_ORIGIN}/v1/payments/flow/return`,
-});
+const paymentService = new PaymentService(
+  database,
+  flowClient,
+  {
+    currency: 'CLP',
+    subjectPrefix: 'Reserva cita DRacing',
+    urlConfirmation:
+      environment.FLOW_CONFIRM_URL ??
+      `${environment.API_ORIGIN}/v1/payments/flow/confirm`,
+    urlReturn:
+      environment.FLOW_RETURN_URL ??
+      `${environment.API_ORIGIN}/v1/payments/flow/return`,
+  },
+  createWhatsAppNotifier(environment.WHATSAPP_PROVIDER),
+);
 const app = await buildApp({
   admin: {
     admin: new AdminService(database),

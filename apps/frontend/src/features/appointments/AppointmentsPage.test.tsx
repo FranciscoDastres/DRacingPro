@@ -28,6 +28,7 @@ const appointment: Appointment = {
   startsAt: '2099-01-15T13:00:00.000Z',
   status: 'requested',
   total: 24990,
+  whatsappPhone: '+56912345678',
 };
 const motorcycle: Motorcycle = {
   color: 'Rojo',
@@ -173,10 +174,9 @@ describe('AppointmentsPage', () => {
     });
     // Disabled until a valid Chilean WhatsApp number is provided.
     expect(confirmButton).toBeDisabled();
-    fireEvent.change(
-      screen.getByLabelText('WhatsApp para coordinación'),
-      { target: { value: '+56912345678' } },
-    );
+    fireEvent.change(screen.getByLabelText('WhatsApp para coordinación'), {
+      target: { value: '+56912345678' },
+    });
     expect(confirmButton).toBeEnabled();
     fireEvent.click(confirmButton);
 

@@ -34,6 +34,7 @@ const appointment: Appointment = {
   ],
   status: 'requested',
   total: 24990,
+  whatsappPhone: '+56912345678',
 };
 const cancelledAppointment: Appointment = {
   ...appointment,

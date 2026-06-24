@@ -621,6 +621,7 @@ function mapAppointment(appointment: {
   };
   starts_at: Date;
   status: Appointment['status'];
+  whatsapp_phone: string | null;
 }): Appointment {
   return {
     endsAt: appointment.ends_at.toISOString(),
@@ -643,6 +644,7 @@ function mapAppointment(appointment: {
       (sum, service) => sum + service.unit_price_cents * service.quantity,
       0,
     ),
+    whatsappPhone: appointment.whatsapp_phone,
   };
 }
 

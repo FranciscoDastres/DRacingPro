@@ -102,6 +102,23 @@ model service_report_items {
   @@index([report_id, kind, sort_order], map: "service_report_items_report_kind_idx")
 }
 
+model service_report_presets {
+  id                 String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  kind               service_report_item_kind
+  title              String                   @db.VarChar(160)
+  description        String
+  severity           recommendation_severity?
+  is_active          Boolean                  @default(true)
+  usage_count        Int                      @default(0)
+  created_by_user_id String?                  @db.Uuid
+  created_at         DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime                 @default(now()) @db.Timestamptz(6)
+  users              users?                   @relation(fields: [created_by_user_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@unique([kind, title], map: "service_report_presets_kind_title_key")
+  @@index([kind, is_active], map: "service_report_presets_kind_active_idx")
+}
+
 model invoices {
   id                                     String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   appointment_id                         String                 @unique @db.Uuid
@@ -298,6 +315,7 @@ model users {
   motorcycles                motorcycles[]
   oauth_accounts             oauth_accounts[]
   schedule_exceptions        schedule_exceptions[]
+  service_report_presets     service_report_presets[]
   service_reports            service_reports[]
 
   @@index([deleted_at])
