@@ -89,8 +89,22 @@ export const ServiceSchema = z.object({
 
 export type Service = z.infer<typeof ServiceSchema>;
 
+/**
+ * Bookings are limited to the current and following calendar year. Keeps the
+ * date picker honest and blocks arbitrary far-future dates (e.g. year 9999)
+ * submitted directly to the API.
+ */
+export function isWithinBookingHorizon(year: number): boolean {
+  return year <= new Date().getFullYear() + 1;
+}
+
 export const AvailabilityRequestSchema = z.object({
-  date: z.iso.date(),
+  date: z.iso
+    .date()
+    .refine(
+      (value) => isWithinBookingHorizon(Number(value.slice(0, 4))),
+      'Fecha fuera del rango reservable',
+    ),
   serviceIds: z.array(z.uuid()).min(1).max(10),
 });
 
@@ -117,7 +131,12 @@ export const ChileanPhoneSchema = z
 export const CreateAppointmentSchema = z.object({
   motorcycleId: z.uuid(),
   serviceIds: z.array(z.uuid()).min(1).max(10),
-  startsAt: z.iso.datetime(),
+  startsAt: z.iso
+    .datetime()
+    .refine(
+      (value) => isWithinBookingHorizon(new Date(value).getUTCFullYear()),
+      'Fecha fuera del rango reservable',
+    ),
   whatsappPhone: ChileanPhoneSchema,
 });
 
@@ -165,6 +184,7 @@ export const AppointmentSchema = z.object({
     'cancelled',
     'no_show',
   ]),
+  whatsappPhone: z.string().nullable(),
 });
 
 export type Appointment = z.infer<typeof AppointmentSchema>;
@@ -455,10 +475,11 @@ export const PaymentSettingsSchema = z.object({
 
 export type PaymentSettings = z.infer<typeof PaymentSettingsSchema>;
 
-export const UpdatePaymentSettingsSchema = PaymentSettingsSchema.partial().refine(
-  (value) => Object.keys(value).length > 0,
-  'At least one field is required',
-);
+export const UpdatePaymentSettingsSchema =
+  PaymentSettingsSchema.partial().refine(
+    (value) => Object.keys(value).length > 0,
+    'At least one field is required',
+  );
 
 export type UpdatePaymentSettingsInput = z.infer<
   typeof UpdatePaymentSettingsSchema
@@ -496,6 +517,42 @@ export const CompleteAppointmentWorkSchema = z.object({
 export type CompleteAppointmentWorkInput = z.infer<
   typeof CompleteAppointmentWorkSchema
 >;
+
+/** Kinds of technical-report item, mirrors the service_report_item_kind enum. */
+export const ReportPresetKindSchema = z.enum([
+  'performed',
+  'pending',
+  'recommendation',
+]);
+
+export type ReportPresetKind = z.infer<typeof ReportPresetKindSchema>;
+
+/** A reusable predefined answer for the technical report. */
+export const ReportPresetSchema = z.object({
+  description: z.string(),
+  id: z.uuid(),
+  kind: ReportPresetKindSchema,
+  severity: z.enum(['info', 'warning', 'critical']).nullable(),
+  title: z.string(),
+  usageCount: z.number().int().nonnegative(),
+});
+
+export type ReportPreset = z.infer<typeof ReportPresetSchema>;
+
+export const CreateReportPresetSchema = z.object({
+  description: z.string().trim().min(2).max(2000),
+  kind: ReportPresetKindSchema,
+  severity: z.enum(['info', 'warning', 'critical']).optional(),
+  title: z.string().trim().min(2).max(160),
+});
+
+export type CreateReportPresetInput = z.infer<typeof CreateReportPresetSchema>;
+
+export const ReportPresetQuerySchema = z.object({
+  kind: ReportPresetKindSchema.optional(),
+});
+
+export type ReportPresetQuery = z.infer<typeof ReportPresetQuerySchema>;
 
 export const AdminUserSchema = z.object({
   appointmentCount: z.number().int().nonnegative(),

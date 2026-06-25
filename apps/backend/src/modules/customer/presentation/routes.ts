@@ -1,4 +1,8 @@
-import { CompleteAppointmentWorkSchema } from '@dracing/contracts';
+import {
+  CompleteAppointmentWorkSchema,
+  CreateReportPresetSchema,
+  ReportPresetQuerySchema,
+} from '@dracing/contracts';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 
@@ -19,9 +23,11 @@ export interface CustomerRoutesOptions {
   customer: Pick<
     CustomerService,
     | 'completeAppointmentWork'
+    | 'createReportPreset'
     | 'getDashboard'
     | 'listHistory'
     | 'listInvoices'
+    | 'listReportPresets'
     | 'renderInvoicePdf'
   >;
   sessions: SessionService;
@@ -87,6 +93,37 @@ export const customerRoutes: FastifyPluginAsync<CustomerRoutesOptions> = async (
             input.data,
           ),
         );
+    } catch (error) {
+      return handleCustomerError(error, reply);
+    }
+  });
+
+  app.get('/admin/report-presets', async (request, reply) => {
+    const user = await requireUser(request, reply, options.sessions);
+    if (!user) return;
+    if (user.role !== 'admin') {
+      return reply.status(403).send({ error: 'forbidden' });
+    }
+    const query = ReportPresetQuerySchema.safeParse(request.query);
+    if (!query.success) {
+      return reply.status(400).send({ error: 'validation_error' });
+    }
+    return reply.send(
+      await options.customer.listReportPresets(query.data.kind),
+    );
+  });
+
+  app.post('/admin/report-presets', async (request, reply) => {
+    const admin = await requireMutationAdmin(request, reply, options);
+    if (!admin) return;
+    const input = CreateReportPresetSchema.safeParse(request.body);
+    if (!input.success) {
+      return reply.status(400).send({ error: 'validation_error' });
+    }
+    try {
+      return reply
+        .status(201)
+        .send(await options.customer.createReportPreset(admin.id, input.data));
     } catch (error) {
       return handleCustomerError(error, reply);
     }

@@ -1,4 +1,9 @@
-import type { AdminAppointment, Appointment } from '@dracing/contracts';
+import type {
+  AdminAppointment,
+  Appointment,
+  ReportPreset,
+  ReportPresetKind,
+} from '@dracing/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
@@ -55,7 +60,17 @@ export function AdminAppointmentsPage() {
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'paid'>(
     'pending',
   );
+  const [saveAsPresets, setSaveAsPresets] = useState(false);
   const range = getAgendaRange(selectedDate, agendaView);
+
+  const reportPresets = useQuery({
+    enabled: Boolean(closingAppointment),
+    queryFn: () => apiClient.get<ReportPreset[]>('/v1/admin/report-presets'),
+    queryKey: ['admin', 'report-presets'],
+    staleTime: 5 * 60_000,
+  });
+  const presetsByKind = (kind: ReportPresetKind) =>
+    reportPresets.data?.filter((preset) => preset.kind === kind) ?? [];
 
   const appointments = useQuery({
     queryFn: () =>
@@ -86,8 +101,11 @@ export function AdminAppointmentsPage() {
     },
   });
   const completeWork = useMutation({
-    mutationFn: (appointmentId: string) => {
-      const recommendations = parseItems(recommendationsText).map((item) => ({
+    mutationFn: async (appointmentId: string) => {
+      const performed = parseItems(performedText);
+      const pending = parseItems(pendingText);
+      const recommendationItems = parseItems(recommendationsText);
+      const recommendations = recommendationItems.map((item) => ({
         ...item,
         ...(maintenanceDate && {
           dueAt: new Date(`${maintenanceDate}T12:00:00`).toISOString(),
@@ -95,22 +113,50 @@ export function AdminAppointmentsPage() {
         ...(maintenanceKm && { dueOdometerKm: Number(maintenanceKm) }),
         severity: 'warning' as const,
       }));
-      return apiClient.post(
+      await apiClient.post(
         `/v1/admin/appointments/${appointmentId}/complete-work`,
         {
           paymentStatus,
-          pending: parseItems(pendingText),
-          performed: parseItems(performedText),
+          pending,
+          performed,
           recommendations,
           technicalSummary,
         },
       );
+      // Persist the answers used as reusable presets so particular cases become
+      // selectable next time. The backend dedupes by (kind, title).
+      if (saveAsPresets) {
+        await Promise.all([
+          ...performed.map((item) =>
+            apiClient.post('/v1/admin/report-presets', {
+              ...item,
+              kind: 'performed',
+            }),
+          ),
+          ...pending.map((item) =>
+            apiClient.post('/v1/admin/report-presets', {
+              ...item,
+              kind: 'pending',
+            }),
+          ),
+          ...recommendationItems.map((item) =>
+            apiClient.post('/v1/admin/report-presets', {
+              ...item,
+              kind: 'recommendation',
+              severity: 'warning',
+            }),
+          ),
+        ]);
+      }
     },
     onSuccess: async () => {
       closeWorkModal();
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['admin', 'appointments'] }),
         queryClient.invalidateQueries({ queryKey: ['admin', 'metrics'] }),
+        queryClient.invalidateQueries({
+          queryKey: ['admin', 'report-presets'],
+        }),
       ]);
     },
   });
@@ -247,162 +293,170 @@ export function AdminAppointmentsPage() {
             (appointment) => AGENDA_BUCKET_OF[appointment.status] === bucket,
           )
           .map((appointment) => {
-          const cancelled = ['cancelled', 'no_show'].includes(
-            appointment.status,
-          );
-          const requested = appointment.status === 'requested';
-          return (
-            <Card className="overflow-hidden" key={appointment.id}>
-              <div className="flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-center">
-                <div className="flex min-w-[150px] items-center gap-3 lg:w-48">
-                  <span className="bg-primary/10 text-primary grid size-10 shrink-0 place-items-center rounded-xl">
-                    <Icon className="size-5" name="calendar" />
-                  </span>
-                  <div>
-                    <p className="font-semibold tabular-nums">
-                      {timeFormatter.format(new Date(appointment.startsAt))}
-                    </p>
-                    <p className="text-muted mt-0.5 text-xs">
-                      hasta {timeFormatter.format(new Date(appointment.endsAt))}
-                    </p>
+            const cancelled = ['cancelled', 'no_show'].includes(
+              appointment.status,
+            );
+            const requested = appointment.status === 'requested';
+            const contactPhone =
+              appointment.whatsappPhone ?? appointment.customer.phone;
+            return (
+              <Card className="overflow-hidden" key={appointment.id}>
+                <div className="flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-center">
+                  <div className="flex min-w-[150px] items-center gap-3 lg:w-48">
+                    <span className="bg-primary/10 text-primary grid size-10 shrink-0 place-items-center rounded-xl">
+                      <Icon className="size-5" name="calendar" />
+                    </span>
+                    <div>
+                      <p className="font-semibold tabular-nums">
+                        {timeFormatter.format(new Date(appointment.startsAt))}
+                      </p>
+                      <p className="text-muted mt-0.5 text-xs">
+                        hasta{' '}
+                        {timeFormatter.format(new Date(appointment.endsAt))}
+                      </p>
+                    </div>
                   </div>
-                </div>
 
-                <div className="min-w-0 flex-1 border-white/8 lg:border-l lg:pl-5">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="truncate text-base font-bold tracking-normal normal-case">
-                      {appointment.customer.displayName}
-                    </h2>
-                    <Badge tone={APPOINTMENT_STATUS_META[appointment.status].tone}>
-                      {APPOINTMENT_STATUS_META[appointment.status].label}
-                    </Badge>
-                  </div>
-                  <p className="text-muted mt-1 truncate text-xs">
-                    {appointment.services
-                      .map((service) => service.name)
-                      .join(', ')}
-                  </p>
-                  <p className="text-muted mt-1 text-xs">
-                    {dateFormatter.format(new Date(appointment.startsAt))}
-                  </p>
-                  <p className="text-muted mt-1 flex flex-wrap gap-x-3 text-xs">
-                    <span className="inline-flex items-center gap-1">
-                      <Icon className="size-3.5" name="mail" />
-                      {appointment.customer.email}
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <Icon className="size-3.5" name="phone" />
-                      {appointment.customer.phone ?? 'Sin teléfono'}
-                    </span>
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                  {appointment.customer.phone ? (
-                    <a
-                      className="inline-flex min-h-9 items-center justify-center gap-2 rounded-xl border border-emerald-400/25 bg-emerald-400/8 px-3.5 text-[0.7rem] font-semibold tracking-wide text-emerald-400 uppercase transition hover:bg-emerald-400/15"
-                      href={toWhatsAppUrl(
-                        appointment.customer.phone,
-                        appointment.customer.displayName,
-                        appointment.startsAt,
-                      )}
-                      rel="noreferrer"
-                      target="_blank"
-                    >
-                      <Icon className="size-4" name="phone" />
-                      WhatsApp
-                    </a>
-                  ) : (
-                    <span className="text-muted px-2 text-xs">
-                      Sin teléfono
-                    </span>
-                  )}
-                  {requested && (
-                    <Button
-                      disabled={statusMutation.isPending}
-                      icon="check"
-                      onClick={() =>
-                        statusMutation.mutate({
-                          id: appointment.id,
-                          status: 'confirmed',
-                        })
-                      }
-                      size="sm"
-                    >
-                      Confirmar
-                    </Button>
-                  )}
-                  {appointment.status === 'confirmed' && (
-                    <Button
-                      disabled={statusMutation.isPending}
-                      icon="tool"
-                      onClick={() =>
-                        statusMutation.mutate({
-                          id: appointment.id,
-                          status: 'in_service',
-                        })
-                      }
-                      size="sm"
-                    >
-                      Iniciar trabajo
-                    </Button>
-                  )}
-                  {appointment.status === 'in_service' && (
-                    <Button
-                      disabled={statusMutation.isPending}
-                      icon="check"
-                      onClick={() =>
-                        statusMutation.mutate({
-                          id: appointment.id,
-                          status: 'ready',
-                        })
-                      }
-                      size="sm"
-                    >
-                      Lista para retiro
-                    </Button>
-                  )}
-                  {!cancelled && canCancel(appointment.status) && (
-                    <Button
-                      disabled={statusMutation.isPending}
-                      onClick={() =>
-                        statusMutation.mutate({
-                          id: appointment.id,
-                          status: 'cancelled',
-                        })
-                      }
-                      size="sm"
-                      variant="danger"
-                    >
-                      Cancelar
-                    </Button>
-                  )}
-                  {!cancelled &&
-                    !['completed', 'no_show'].includes(appointment.status) && (
-                      <Button
-                        icon="tool"
-                        onClick={() => {
-                          setClosingAppointment(appointment);
-                          setTechnicalSummary('');
-                          setPerformedText('');
-                          setPendingText('');
-                          setRecommendationsText('');
-                          setMaintenanceDate('');
-                          setMaintenanceKm('');
-                          setPaymentStatus('pending');
-                          completeWork.reset();
-                        }}
-                        size="sm"
-                        variant="secondary"
+                  <div className="min-w-0 flex-1 border-white/8 lg:border-l lg:pl-5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="truncate text-base font-bold tracking-normal normal-case">
+                        {appointment.customer.displayName}
+                      </h2>
+                      <Badge
+                        tone={APPOINTMENT_STATUS_META[appointment.status].tone}
                       >
-                        Registrar atención
+                        {APPOINTMENT_STATUS_META[appointment.status].label}
+                      </Badge>
+                    </div>
+                    <p className="text-muted mt-1 truncate text-xs">
+                      {appointment.services
+                        .map((service) => service.name)
+                        .join(', ')}
+                    </p>
+                    <p className="text-muted mt-1 text-xs">
+                      {dateFormatter.format(new Date(appointment.startsAt))}
+                    </p>
+                    <p className="text-muted mt-1 flex flex-wrap gap-x-3 text-xs">
+                      <span className="inline-flex items-center gap-1">
+                        <Icon className="size-3.5" name="mail" />
+                        {appointment.customer.email}
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <Icon className="size-3.5" name="phone" />
+                        {contactPhone ?? 'Sin teléfono'}
+                      </span>
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                    {contactPhone ? (
+                      <a
+                        className="inline-flex min-h-9 items-center justify-center gap-2 rounded-xl border border-emerald-400/25 bg-emerald-400/8 px-3.5 text-[0.7rem] font-semibold tracking-wide text-emerald-400 uppercase transition hover:bg-emerald-400/15"
+                        href={toWhatsAppUrl(
+                          contactPhone,
+                          appointment.customer.displayName,
+                          appointment.startsAt,
+                        )}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        <Icon className="size-4" name="phone" />
+                        WhatsApp
+                      </a>
+                    ) : (
+                      <span className="text-muted px-2 text-xs">
+                        Sin teléfono
+                      </span>
+                    )}
+                    {requested && (
+                      <Button
+                        disabled={statusMutation.isPending}
+                        icon="check"
+                        onClick={() =>
+                          statusMutation.mutate({
+                            id: appointment.id,
+                            status: 'confirmed',
+                          })
+                        }
+                        size="sm"
+                      >
+                        Confirmar
                       </Button>
                     )}
+                    {appointment.status === 'confirmed' && (
+                      <Button
+                        disabled={statusMutation.isPending}
+                        icon="tool"
+                        onClick={() =>
+                          statusMutation.mutate({
+                            id: appointment.id,
+                            status: 'in_service',
+                          })
+                        }
+                        size="sm"
+                      >
+                        Iniciar trabajo
+                      </Button>
+                    )}
+                    {appointment.status === 'in_service' && (
+                      <Button
+                        disabled={statusMutation.isPending}
+                        icon="check"
+                        onClick={() =>
+                          statusMutation.mutate({
+                            id: appointment.id,
+                            status: 'ready',
+                          })
+                        }
+                        size="sm"
+                      >
+                        Lista para retiro
+                      </Button>
+                    )}
+                    {!cancelled && canCancel(appointment.status) && (
+                      <Button
+                        disabled={statusMutation.isPending}
+                        onClick={() =>
+                          statusMutation.mutate({
+                            id: appointment.id,
+                            status: 'cancelled',
+                          })
+                        }
+                        size="sm"
+                        variant="danger"
+                      >
+                        Cancelar
+                      </Button>
+                    )}
+                    {!cancelled &&
+                      !['completed', 'no_show'].includes(
+                        appointment.status,
+                      ) && (
+                        <Button
+                          icon="tool"
+                          onClick={() => {
+                            setClosingAppointment(appointment);
+                            setTechnicalSummary('');
+                            setPerformedText('');
+                            setPendingText('');
+                            setRecommendationsText('');
+                            setMaintenanceDate('');
+                            setMaintenanceKm('');
+                            setPaymentStatus('pending');
+                            setSaveAsPresets(false);
+                            completeWork.reset();
+                          }}
+                          size="sm"
+                          variant="secondary"
+                        >
+                          Registrar atención
+                        </Button>
+                      )}
+                  </div>
                 </div>
-              </div>
-            </Card>
-          );
-        })}
+              </Card>
+            );
+          })}
       </div>
 
       {statusMutation.isError && (
@@ -429,41 +483,61 @@ export function AdminAppointmentsPage() {
               value={technicalSummary}
             />
           </label>
-          <label className="block">
+          <div className="block">
             <span className="text-muted mb-1.5 block text-xs font-semibold uppercase">
               Trabajo realizado
             </span>
+            <PresetPicker
+              presets={presetsByKind('performed')}
+              onPick={(preset) =>
+                setPerformedText((current) => appendPresetLine(current, preset))
+              }
+            />
             <textarea
-              className={textareaClass}
+              className={`${textareaClass} mt-2`}
               onChange={(event) => setPerformedText(event.target.value)}
               placeholder={
                 'Un trabajo por línea. Formato: Título | Descripción'
               }
               value={performedText}
             />
-          </label>
-          <label className="block">
+          </div>
+          <div className="block">
             <span className="text-muted mb-1.5 block text-xs font-semibold uppercase">
               Trabajo pendiente
             </span>
+            <PresetPicker
+              presets={presetsByKind('pending')}
+              onPick={(preset) =>
+                setPendingText((current) => appendPresetLine(current, preset))
+              }
+            />
             <textarea
-              className={textareaClass}
+              className={`${textareaClass} mt-2`}
               onChange={(event) => setPendingText(event.target.value)}
               placeholder="Opcional: Título | Descripción"
               value={pendingText}
             />
-          </label>
-          <label className="block">
+          </div>
+          <div className="block">
             <span className="text-muted mb-1.5 block text-xs font-semibold uppercase">
               Recomendaciones futuras
             </span>
+            <PresetPicker
+              presets={presetsByKind('recommendation')}
+              onPick={(preset) =>
+                setRecommendationsText((current) =>
+                  appendPresetLine(current, preset),
+                )
+              }
+            />
             <textarea
-              className={textareaClass}
+              className={`${textareaClass} mt-2`}
               onChange={(event) => setRecommendationsText(event.target.value)}
               placeholder="Opcional: Título | Descripción"
               value={recommendationsText}
             />
-          </label>
+          </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <label>
               <span className="text-muted mb-1.5 block text-xs font-semibold uppercase">
@@ -504,6 +578,16 @@ export function AdminAppointmentsPage() {
               <option value="paid">Pagado</option>
             </select>
           </label>
+          <label className="flex items-center gap-2 text-xs font-semibold">
+            <input
+              checked={saveAsPresets}
+              onChange={(event) => setSaveAsPresets(event.target.checked)}
+              type="checkbox"
+            />
+            <span className="text-muted">
+              Guardar estas respuestas como presets reutilizables
+            </span>
+          </label>
           {completeWork.isError && (
             <p className="text-sm text-red-400" role="alert">
               No fue posible finalizar la atención. Revisa los datos e inténtalo
@@ -542,6 +626,44 @@ const textareaClass =
   'bg-background focus:border-accent min-h-20 w-full resize-y rounded-xl border border-white/10 px-3 py-2 text-sm outline-none';
 const inputClass =
   'bg-background focus:border-accent w-full rounded-xl border border-white/10 px-3 py-2.5 text-sm outline-none';
+
+function PresetPicker({
+  onPick,
+  presets,
+}: {
+  onPick: (preset: ReportPreset) => void;
+  presets: ReportPreset[];
+}) {
+  if (presets.length === 0) return null;
+  return (
+    <select
+      aria-label="Respuestas predefinidas"
+      className={inputClass}
+      onChange={(event) => {
+        const preset = presets.find((item) => item.id === event.target.value);
+        if (preset) onPick(preset);
+        event.target.selectedIndex = 0;
+      }}
+      value=""
+    >
+      <option value="">+ Agregar respuesta predefinida…</option>
+      {presets.map((preset) => (
+        <option key={preset.id} value={preset.id}>
+          {preset.title}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+/** Append a preset as a new `Título | Descripción` line, skipping duplicates. */
+function appendPresetLine(current: string, preset: ReportPreset): string {
+  const line = `${preset.title} | ${preset.description}`;
+  const lines = current.split('\n').map((value) => value.trim());
+  if (lines.includes(line)) return current;
+  const trimmed = current.trimEnd();
+  return trimmed ? `${trimmed}\n${line}` : line;
+}
 
 function parseItems(
   value: string,

@@ -14,7 +14,8 @@ const appointment: AdminAppointment = {
     displayName: 'Cliente Agenda',
     email: 'cliente@example.com',
     id: '9d8ce4e1-1e2b-4a98-beb6-c96e8d5e63f2',
-    phone: '+56912345678',
+    // Account has no phone (Google sign-in); the booking WhatsApp is the only number.
+    phone: null,
   },
   endsAt: '2026-06-20T14:00:00.000Z',
   id: '78c865ca-8224-4e9e-a2e2-a9eddf4fb844',
@@ -34,6 +35,7 @@ const appointment: AdminAppointment = {
   startsAt: '2026-06-20T13:00:00.000Z',
   status: 'requested',
   total: 24990,
+  whatsappPhone: '+56987654321',
 };
 
 afterEach(() => {
@@ -118,10 +120,13 @@ describe('AdminAppointmentsPage', () => {
     );
 
     const whatsapp = await screen.findByRole('link', { name: 'WhatsApp' });
+    // The action must use the WhatsApp number entered at booking, not the
+    // (absent) account phone.
     expect(whatsapp).toHaveAttribute(
       'href',
-      expect.stringContaining('https://wa.me/56912345678'),
+      expect.stringContaining('https://wa.me/56987654321'),
     );
+    expect(screen.getByText('+56987654321')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
 
     await waitFor(() =>

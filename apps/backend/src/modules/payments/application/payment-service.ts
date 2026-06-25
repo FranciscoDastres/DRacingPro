@@ -6,6 +6,10 @@ import type {
 import type { DatabaseClient } from '@dracing/database';
 
 import {
+  NoopWhatsAppNotifier,
+  type WhatsAppNotifier,
+} from '../../notifications/whatsapp-notifier.js';
+import {
   type FlowClient,
   isPaidFlowStatus,
 } from '../infrastructure/flow-client.js';
@@ -32,6 +36,9 @@ export class PaymentService {
     private readonly database: DatabaseClient,
     private readonly flow: FlowClient,
     private readonly config: PaymentServiceConfig,
+    // Optional so existing wiring/tests keep their 3-arg construction. Defaults
+    // to a no-op until a WhatsApp provider is configured.
+    private readonly whatsapp: WhatsAppNotifier = new NoopWhatsAppNotifier(),
   ) {}
 
   async getSettings(): Promise<PaymentSettings> {
@@ -154,6 +161,7 @@ export class PaymentService {
 
     const breakdown = computeTaxBreakdown(payment.amount_cents);
     const paidAt = new Date();
+    let confirmedPhone: string | null = null;
 
     await this.database.$transaction(async (transaction) => {
       const appointment = await transaction.appointments.findUnique({
@@ -208,6 +216,7 @@ export class PaymentService {
             to_status: 'confirmed',
           },
         });
+        confirmedPhone = appointment.whatsapp_phone;
       }
 
       await transaction.audit_logs.create({
@@ -224,6 +233,21 @@ export class PaymentService {
         },
       });
     });
+
+    // Fire-and-forget: notify the customer their booking is confirmed. The
+    // notifier is a no-op until a WhatsApp provider is configured. A delivery
+    // failure must never undo the already-committed payment confirmation.
+    if (confirmedPhone) {
+      try {
+        await this.whatsapp.send({
+          body: 'Tu pago fue confirmado y tu cita en D Racing Pro está reservada. ¡Te esperamos!',
+          kind: 'payment_confirmed',
+          to: confirmedPhone,
+        });
+      } catch {
+        // swallow: notification is best-effort
+      }
+    }
   }
 
   async getStatusView(
