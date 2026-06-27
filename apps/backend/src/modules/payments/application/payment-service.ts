@@ -11,6 +11,7 @@ import {
 } from '../../notifications/whatsapp-notifier.js';
 import {
   type FlowClient,
+  type FlowStatusResult,
   isPaidFlowStatus,
 } from '../infrastructure/flow-client.js';
 import { computeChargeAmount, computeTaxBreakdown } from './payment-math.js';
@@ -159,30 +160,26 @@ export class PaymentService {
       return;
     }
 
-    // Defense in depth: Flow reports paid, but the amount must match the order we
-    // created server-side. A mismatch (tampering, wrong order, Flow anomaly) must
-    // NEVER confirm the appointment or emit an invoice. We flag the payment as
-    // 'failed' so it is not retried by reconciliation, and record an audit event
-    // for manual review. Amounts are whole CLP pesos on both sides.
+    // Defense in depth: Flow reports paid, but both the amount AND the order
+    // identity must match what we created server-side. Flow does not sign its
+    // JSON responses (integrity rests on TLS + our re-query), so we re-validate
+    // here. Any mismatch (tampering, wrong order, Flow anomaly) must NEVER
+    // confirm the appointment or emit an invoice: we flag the payment 'failed'
+    // (so reconciliation won't retry it) and record an audit event for manual
+    // review. Amounts are whole CLP pesos on both sides.
     if (status.amount !== payment.amount_cents) {
-      await this.database.payments.update({
-        data: { raw_response: { ...status }, status: 'failed' },
-        where: { id: payment.id },
-      });
-      await this.database.audit_logs.create({
-        data: {
-          action: 'payment.amount_mismatch',
-          entity_id: payment.id,
-          entity_type: 'payment',
-          metadata: {
-            appointmentId: payment.appointment_id,
-            expectedAmount: payment.amount_cents,
-            flowCommerceOrder: status.commerceOrder,
-            flowOrder: status.flowOrder,
-            reportedAmount: status.amount,
-          },
-        },
-      });
+      await this.failMismatchedPayment(payment, status, 'payment.amount_mismatch');
+      return;
+    }
+    if (
+      status.commerceOrder &&
+      status.commerceOrder !== payment.flow_commerce_order
+    ) {
+      await this.failMismatchedPayment(
+        payment,
+        status,
+        'payment.commerce_order_mismatch',
+      );
       return;
     }
 
@@ -302,6 +299,40 @@ export class PaymentService {
       invoiceId: invoice?.id ?? null,
       status: payment?.status ?? 'created',
     };
+  }
+
+  // Flags a paid-but-inconsistent Flow payment as failed and records an audit
+  // event. Shared by the amount and commerceOrder mismatch guards so neither
+  // ever confirms the appointment.
+  private async failMismatchedPayment(
+    payment: {
+      amount_cents: number;
+      appointment_id: string;
+      flow_commerce_order: string;
+      id: string;
+    },
+    status: FlowStatusResult,
+    action: 'payment.amount_mismatch' | 'payment.commerce_order_mismatch',
+  ): Promise<void> {
+    await this.database.payments.update({
+      data: { raw_response: { ...status }, status: 'failed' },
+      where: { id: payment.id },
+    });
+    await this.database.audit_logs.create({
+      data: {
+        action,
+        entity_id: payment.id,
+        entity_type: 'payment',
+        metadata: {
+          appointmentId: payment.appointment_id,
+          expectedAmount: payment.amount_cents,
+          expectedCommerceOrder: payment.flow_commerce_order,
+          flowCommerceOrder: status.commerceOrder,
+          flowOrder: status.flowOrder,
+          reportedAmount: status.amount,
+        },
+      },
+    });
   }
 
   // Defense in depth against a lost webhook: re-query Flow for any still-open
