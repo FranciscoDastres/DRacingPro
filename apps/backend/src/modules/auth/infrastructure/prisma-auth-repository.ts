@@ -46,6 +46,14 @@ export class PrismaAuthRepository implements AuthRepository {
     return mapUser(session.users);
   }
 
+  async revokeAllSessionsForUser(userId: string): Promise<number> {
+    const result = await this.database.auth_sessions.updateMany({
+      data: { revoked_at: new Date() },
+      where: { revoked_at: null, user_id: userId },
+    });
+    return result.count;
+  }
+
   async revokeSession(tokenHash: Uint8Array<ArrayBuffer>): Promise<void> {
     await this.database.auth_sessions.updateMany({
       data: { revoked_at: new Date() },

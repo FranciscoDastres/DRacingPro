@@ -84,6 +84,12 @@ export class SessionService {
     if (!token) return;
     await this.repository.revokeSession(hashSessionToken(token));
   }
+
+  // Revokes every active session of a user ("log out of all devices"). Returns
+  // how many sessions were revoked.
+  async revokeAllSessions(userId: string): Promise<number> {
+    return this.repository.revokeAllSessionsForUser(userId);
+  }
 }
 
 export function hashSessionToken(token: string): Uint8Array<ArrayBuffer> {

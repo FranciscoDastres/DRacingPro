@@ -19,6 +19,7 @@ export const testUser: AuthUser = {
 export class MemoryAuthRepository implements AuthRepository {
   passwordHash: string | null = null;
   revoked = false;
+  revokedAllForUserId: string | null = null;
   user: AuthUser | null = testUser;
 
   async createSession(
@@ -36,6 +37,12 @@ export class MemoryAuthRepository implements AuthRepository {
 
   async revokeSession(_tokenHash: Uint8Array<ArrayBuffer>): Promise<void> {
     this.revoked = true;
+  }
+
+  async revokeAllSessionsForUser(userId: string): Promise<number> {
+    this.revokedAllForUserId = userId;
+    this.revoked = true;
+    return 1;
   }
 
   async findLocalAdminByEmail(
