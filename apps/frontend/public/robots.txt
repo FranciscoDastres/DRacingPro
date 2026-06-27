@@ -1,0 +1,9 @@
+# D Racing Pro
+User-agent: *
+Allow: /
+# Áreas privadas (requieren sesión): fuera del índice.
+Disallow: /app/
+Disallow: /admin/
+
+# TODO go-live: descomentar con el dominio real de producción.
+# Sitemap: https://TU-DOMINIO/sitemap.xml
