@@ -43,6 +43,7 @@ export interface AuthRepository {
   ): Promise<AuthUser | null>;
   findLocalAdminByEmail(email: string): Promise<LocalAdminCredentials | null>;
   revokeSession(tokenHash: Uint8Array<ArrayBuffer>): Promise<void>;
+  revokeAllSessionsForUser(userId: string): Promise<number>;
   updateProfile(userId: string, update: ProfileUpdate): Promise<AuthUser>;
   upsertGoogleUser(profile: GoogleProfile): Promise<AuthUser>;
   upsertDeveloperUser(): Promise<AuthUser>;
