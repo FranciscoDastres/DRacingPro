@@ -159,6 +159,33 @@ export class PaymentService {
       return;
     }
 
+    // Defense in depth: Flow reports paid, but the amount must match the order we
+    // created server-side. A mismatch (tampering, wrong order, Flow anomaly) must
+    // NEVER confirm the appointment or emit an invoice. We flag the payment as
+    // 'failed' so it is not retried by reconciliation, and record an audit event
+    // for manual review. Amounts are whole CLP pesos on both sides.
+    if (status.amount !== payment.amount_cents) {
+      await this.database.payments.update({
+        data: { raw_response: { ...status }, status: 'failed' },
+        where: { id: payment.id },
+      });
+      await this.database.audit_logs.create({
+        data: {
+          action: 'payment.amount_mismatch',
+          entity_id: payment.id,
+          entity_type: 'payment',
+          metadata: {
+            appointmentId: payment.appointment_id,
+            expectedAmount: payment.amount_cents,
+            flowCommerceOrder: status.commerceOrder,
+            flowOrder: status.flowOrder,
+            reportedAmount: status.amount,
+          },
+        },
+      });
+      return;
+    }
+
     const breakdown = computeTaxBreakdown(payment.amount_cents);
     const paidAt = new Date();
     let confirmedPhone: string | null = null;
@@ -277,6 +304,66 @@ export class PaymentService {
     };
   }
 
+  // Defense in depth against a lost webhook: re-query Flow for any still-open
+  // payment created in the recent window and confirm the ones Flow now reports as
+  // paid. Delegates to confirmFromWebhook, which is idempotent and re-validates
+  // the amount, so a replay or an already-confirmed payment is a no-op. Returns
+  // how many payments flipped to paid (for observability).
+  async reconcilePendingPayments(
+    maxAgeMs = 48 * 60 * 60 * 1000,
+  ): Promise<number> {
+    const since = new Date(Date.now() - maxAgeMs);
+    const open = await this.database.payments.findMany({
+      orderBy: { created_at: 'asc' },
+      select: { flow_token: true, id: true },
+      where: {
+        created_at: { gte: since },
+        flow_token: { not: null },
+        status: { in: ['created', 'pending'] },
+      },
+    });
+
+    let confirmed = 0;
+    for (const { flow_token: token, id } of open) {
+      if (!token) continue;
+      try {
+        await this.confirmFromWebhook(token);
+        const fresh = await this.database.payments.findUnique({
+          select: { status: true },
+          where: { id },
+        });
+        if (fresh?.status === 'paid') confirmed += 1;
+      } catch {
+        // Best-effort per payment: a single failure must not stop the sweep.
+      }
+    }
+    return confirmed;
+  }
+
+  // Reconciles every open payment of a single appointment. Used right before
+  // releasing an expired hold so a paid-but-unwebhooked booking is confirmed
+  // instead of cancelled.
+  private async reconcileAppointmentPayments(
+    appointmentId: string,
+  ): Promise<void> {
+    const open = await this.database.payments.findMany({
+      select: { flow_token: true },
+      where: {
+        appointment_id: appointmentId,
+        flow_token: { not: null },
+        status: { in: ['created', 'pending'] },
+      },
+    });
+    for (const { flow_token: token } of open) {
+      if (!token) continue;
+      try {
+        await this.confirmFromWebhook(token);
+      } catch {
+        // Best-effort: fall through to the normal expiry handling.
+      }
+    }
+  }
+
   // Releases slots whose payment hold elapsed without a confirmed payment.
   async expireStaleHolds(): Promise<number> {
     const now = new Date();
@@ -290,7 +377,18 @@ export class PaymentService {
 
     let released = 0;
     for (const appointment of stale) {
+      // A lost webhook could mean this "expired" hold was actually paid. Reconcile
+      // with Flow first; if it was paid, confirmFromWebhook already moved it to
+      // 'confirmed' and the re-read below keeps us from cancelling a paid slot.
+      await this.reconcileAppointmentPayments(appointment.id);
+
       await this.database.$transaction(async (transaction) => {
+        const fresh = await transaction.appointments.findUnique({
+          select: { status: true, version: true },
+          where: { id: appointment.id },
+        });
+        if (!fresh || fresh.status !== 'pending_payment') return;
+
         const updated = await transaction.appointments.updateMany({
           data: {
             cancellation_reason: 'payment_expired',
@@ -301,7 +399,7 @@ export class PaymentService {
           where: {
             id: appointment.id,
             status: 'pending_payment',
-            version: appointment.version,
+            version: fresh.version,
           },
         });
         if (updated.count === 0) return;

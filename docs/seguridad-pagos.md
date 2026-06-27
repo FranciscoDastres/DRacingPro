@@ -30,12 +30,34 @@ El estado del pago **nunca** se determina desde el navegador del cliente:
 | 10 | CSRF en mutaciones | Medio | **Mantenido**: `hasTrustedOrigin` en endpoints con estado (excepto webhook, que es server-to-server) |
 | 11 | Trazabilidad de pagos | Bajo | **Cubierto**: `audit_logs` registra `payment.confirmed` |
 
+## Endurecimiento aplicado (junio 2026)
+- **Verificación de monto en el webhook** (`payment-service.ts`): tras `getStatus`,
+  si `status.amount !== payment.amount_cents` la cita **no** se confirma; el pago se
+  marca `failed` y se registra `payment.amount_mismatch` en `audit_logs`.
+- **Reconciliación** (`reconcilePendingPayments`, timer en `server.ts` cada 3 min):
+  reconsulta `getStatus` de pagos `created`/`pending` recientes y confirma los que
+  Flow reporta pagados, reusando `confirmFromWebhook` (idempotente). Cubre webhooks
+  perdidos.
+- **Expiración defensiva** (`expireStaleHolds`): antes de liberar un cupo, reconcilia
+  con Flow y re-lee el estado dentro de la transacción; nunca cancela un cupo ya
+  pagado.
+- **`trustProxy` configurable** (`TRUSTED_PROXY`, `env.ts`): default seguro (1 salto
+  nginx en prod, sin confianza en dev). Evita falsear `X-Forwarded-For` para saltar
+  el rate-limit por IP o envenenar `audit_logs`.
+- **Escaneo de dependencias en CI** (`.github/workflows/ci.yml`): `pnpm audit
+  --audit-level=high` bloquea el build ante CVE alto/crítico. `.github/dependabot.yml`
+  abre PRs semanales de actualización (npm + GitHub Actions).
+- **Cabeceras de seguridad en el frontend** (`infra/nginx/default.conf`):
+  `Content-Security-Policy` (script-src 'self', sin inline-JS), `Strict-Transport-Security`
+  y `Permissions-Policy`, además de las ya presentes.
+- **Redacción de logs** (`app.ts`, `resolveLoggerOptions`): pino elimina `cookie`,
+  `authorization` y `set-cookie` de cualquier objeto registrado, evitando filtrar el
+  token de sesión a los logs.
+
 ## Recomendaciones pendientes / operativas
 - **Webhook alcanzable**: en producción, exponer `/v1/payments/flow/confirm` por
   HTTPS público; en dev usar un túnel. Considerar lista blanca de IPs de Flow si
   está disponible.
-- **Reconciliación**: tarea periódica que consulte `getStatus` de pagos `pending`
-  antiguos por si se perdió un webhook (defensa en profundidad).
 - **Boleta tributaria (SII)**: hoy el comprobante es interno (`document_kind =
   comprobante_interno`); los campos `net_cents`/`iva_cents`/`sii_*` quedan
   preparados pero la emisión tributaria real es un trabajo aparte.
