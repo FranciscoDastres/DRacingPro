@@ -25,6 +25,45 @@ describe('signFlowParams', () => {
   });
 });
 
+describe('FlowClient construction', () => {
+  // Flow does not sign its JSON responses; the integrity of getStatus rests on
+  // TLS. A plain-http apiBase would silently expose confirmation to a MITM that
+  // could forge a "paid" status, so the client refuses it (localhost excepted
+  // for local mocks/tests).
+  it('rejects a non-HTTPS apiBase', () => {
+    expect(
+      () =>
+        new FlowClient({
+          apiBase: 'http://www.flow.cl/api',
+          apiKey: 'k',
+          secretKey: 's',
+        }),
+    ).toThrow();
+  });
+
+  it('allows http only for localhost', () => {
+    expect(
+      () =>
+        new FlowClient({
+          apiBase: 'http://localhost:3001/flow',
+          apiKey: 'k',
+          secretKey: 's',
+        }),
+    ).not.toThrow();
+  });
+
+  it('accepts an https apiBase', () => {
+    expect(
+      () =>
+        new FlowClient({
+          apiBase: 'https://www.flow.cl/api',
+          apiKey: 'k',
+          secretKey: 's',
+        }),
+    ).not.toThrow();
+  });
+});
+
 describe('FlowClient.getStatus', () => {
   afterEach(() => {
     vi.unstubAllGlobals();

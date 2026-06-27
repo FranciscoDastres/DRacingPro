@@ -81,6 +81,47 @@ describe('PaymentService.confirmFromWebhook amount verification', () => {
     );
   });
 
+  it('does NOT confirm when Flow reports a different commerceOrder', async () => {
+    const update = vi.fn(async () => undefined);
+    const auditCreate = vi.fn(async () => undefined);
+    const transaction = vi.fn(async () => undefined);
+    const database = {
+      audit_logs: { create: auditCreate },
+      payments: {
+        findUnique: vi.fn(async () => basePayment),
+        update,
+      },
+      $transaction: transaction,
+    } as unknown as DatabaseClient;
+
+    // Paid, correct amount, but the order identity does not match ours.
+    const flow = {
+      getStatus: vi.fn(async () =>
+        paidStatus({ commerceOrder: 'APPT-OTHER-ORDER-ZZZ' }),
+      ),
+    } as unknown as FlowClient;
+
+    const service = new PaymentService(database, flow, config);
+    await service.confirmFromWebhook('flow-token-123');
+
+    expect(transaction).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: 'failed' }),
+        where: { id: 'pay-1' },
+      }),
+    );
+    expect(auditCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: 'payment.commerce_order_mismatch',
+          entity_id: 'pay-1',
+          entity_type: 'payment',
+        }),
+      }),
+    );
+  });
+
   it('confirms when Flow reports the exact order amount', async () => {
     const appointment = {
       id: appointmentId,

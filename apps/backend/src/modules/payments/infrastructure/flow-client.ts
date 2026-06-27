@@ -51,8 +51,27 @@ export function signFlowParams(
 
 export class FlowError extends Error {}
 
+// Flow does not sign its JSON responses, so the integrity of getStatus rests on
+// TLS. Refuse a plain-http apiBase (which a MITM could use to forge a "paid"
+// status); localhost is exempt for local mocks and tests.
+function assertSecureApiBase(apiBase: string): void {
+  let url: URL;
+  try {
+    url = new URL(apiBase);
+  } catch {
+    throw new FlowError('flow_invalid_api_base');
+  }
+  const isLoopback =
+    url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+  if (url.protocol !== 'https:' && !isLoopback) {
+    throw new FlowError('flow_insecure_api_base');
+  }
+}
+
 export class FlowClient {
-  constructor(private readonly config: FlowConfig) {}
+  constructor(private readonly config: FlowConfig) {
+    assertSecureApiBase(config.apiBase);
+  }
 
   async createPayment(
     input: FlowCreatePaymentInput,

@@ -54,6 +54,21 @@ El estado del pago **nunca** se determina desde el navegador del cliente:
   `authorization` y `set-cookie` de cualquier objeto registrado, evitando filtrar el
   token de sesión a los logs.
 
+### Firma de respuesta de Flow (P2): por qué NO se implementa
+La doc oficial de Flow ([developers.flow.cl](https://developers.flow.cl/en/api))
+confirma que **Flow no firma sus respuestas JSON**: el parámetro `s` (HMAC-SHA256)
+es solo para las peticiones *hacia* Flow. Las respuestas de `payment/create` y
+`payment/getStatus` traen únicamente `url`/`token`/`flowOrder`/`status`, sin firma.
+Verificar una "firma de respuesta" sería validar un campo inexistente. La integridad
+de la respuesta está cubierta por **TLS** + el hecho de que **nosotros** iniciamos
+la re-consulta a `getStatus`. En su lugar se aplicó hardening real al módulo:
+- **HTTPS obligatorio en `FLOW_API_BASE`** (`flow-client.ts`, `assertSecureApiBase`):
+  como el modelo de confianza depende de TLS, un `apiBase` `http://` se rechaza
+  (excepto `localhost` para pruebas); evita un MITM que falsifique un "pagado".
+- **Verificación de `commerceOrder`** (`payment-service.ts`): además del monto, se
+  comprueba que el `commerceOrder` reportado por Flow coincida con el de nuestra
+  orden; un mismatch marca el pago `failed` + `audit_logs` y nunca confirma la cita.
+
 ## Recomendaciones pendientes / operativas
 - **Webhook alcanzable**: en producción, exponer `/v1/payments/flow/confirm` por
   HTTPS público; en dev usar un túnel. Considerar lista blanca de IPs de Flow si
