@@ -1,0 +1,21 @@
+{
+  "ci": {
+    "collect": {
+      "staticDistDir": "apps/frontend/dist",
+      "numberOfRuns": 3
+    },
+    "assert": {
+      "//": "Modo 'warn': reporta el score en cada PR sin bloquear el merge. El servidor estático de LHCI corre sobre http y sin gzip/cache de nginx, así que performance/best-practices salen MÁS bajos que en producción. Cuando tengas una línea base estable, sube accessibility y seo a 'error' para que sí bloqueen.",
+      "assertions": {
+        "categories:performance": ["warn", { "minScore": 0.8 }],
+        "categories:accessibility": ["warn", { "minScore": 0.9 }],
+        "categories:best-practices": ["warn", { "minScore": 0.9 }],
+        "categories:seo": ["warn", { "minScore": 0.9 }]
+      }
+    },
+    "upload": {
+      "target": "filesystem",
+      "outputDir": ".lighthouseci"
+    }
+  }
+}
