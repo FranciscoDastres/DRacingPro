@@ -31,11 +31,11 @@ jobs:
       DATABASE_URL: postgresql://dracing:dracing@localhost:5432/dracing_test
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
         with:
           version: 10.32.1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20.19.6
           cache: pnpm
