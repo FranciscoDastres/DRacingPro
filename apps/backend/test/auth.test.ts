@@ -227,4 +227,91 @@ describe('authentication routes', () => {
     expect(repository.revoked).toBe(true);
     await app.close();
   });
+
+  it('revokes every session for the user on logout-all and clears the cookie', async () => {
+    const repository = new MemoryAuthRepository();
+    const app = await buildApp({
+      appOrigin: 'http://localhost:5173',
+      auth: {
+        apiOrigin: 'http://localhost:3000',
+        appOrigin: 'http://localhost:5173',
+        secureCookies: false,
+        sessions: new SessionService(repository),
+      },
+      checkDatabase: async () => undefined,
+      logger: false,
+    });
+
+    const response = await app.inject({
+      headers: {
+        cookie: 'drp_session=test-session',
+        origin: 'http://localhost:5173',
+      },
+      method: 'POST',
+      url: '/v1/auth/logout-all',
+    });
+    expect(response.statusCode).toBe(204);
+    expect(response.headers['set-cookie']).toBeDefined();
+    expect(repository.revokedAllForUserId).toBe(testUser.id);
+
+    // The session no longer authenticates after a global logout.
+    const me = await app.inject({
+      headers: { cookie: 'drp_session=test-session' },
+      method: 'GET',
+      url: '/v1/auth/me',
+    });
+    expect(me.statusCode).toBe(401);
+    await app.close();
+  });
+
+  it('rejects logout-all from an untrusted origin', async () => {
+    const repository = new MemoryAuthRepository();
+    const app = await buildApp({
+      appOrigin: 'http://localhost:5173',
+      auth: {
+        apiOrigin: 'http://localhost:3000',
+        appOrigin: 'http://localhost:5173',
+        secureCookies: false,
+        sessions: new SessionService(repository),
+      },
+      checkDatabase: async () => undefined,
+      logger: false,
+    });
+
+    const response = await app.inject({
+      headers: {
+        cookie: 'drp_session=test-session',
+        origin: 'http://evil.example',
+      },
+      method: 'POST',
+      url: '/v1/auth/logout-all',
+    });
+    expect(response.statusCode).toBe(403);
+    expect(repository.revokedAllForUserId).toBeNull();
+    await app.close();
+  });
+
+  it('rejects logout-all when not authenticated', async () => {
+    const repository = new MemoryAuthRepository();
+    repository.user = null;
+    const app = await buildApp({
+      appOrigin: 'http://localhost:5173',
+      auth: {
+        apiOrigin: 'http://localhost:3000',
+        appOrigin: 'http://localhost:5173',
+        secureCookies: false,
+        sessions: new SessionService(repository),
+      },
+      checkDatabase: async () => undefined,
+      logger: false,
+    });
+
+    const response = await app.inject({
+      headers: { origin: 'http://localhost:5173' },
+      method: 'POST',
+      url: '/v1/auth/logout-all',
+    });
+    expect(response.statusCode).toBe(401);
+    await app.close();
+  });
 });

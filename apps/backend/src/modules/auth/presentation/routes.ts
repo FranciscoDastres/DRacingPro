@@ -205,6 +205,20 @@ export const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (
     reply.clearCookie(SESSION_COOKIE, { path: '/' });
     return reply.status(204).send();
   });
+
+  // "Cerrar sesión en todos los dispositivos": revoca todas las sesiones del
+  // usuario autenticado, no solo la actual.
+  app.post('/logout-all', async (request, reply) => {
+    if (!hasTrustedOrigin(request, options.appOrigin)) {
+      return reply.status(403).send({ error: 'invalid_origin' });
+    }
+    const user = await requireUser(request, reply, options.sessions);
+    if (!user) return;
+
+    await options.sessions.revokeAllSessions(user.id);
+    reply.clearCookie(SESSION_COOKIE, { path: '/' });
+    return reply.status(204).send();
+  });
 };
 
 export async function requireUser(
