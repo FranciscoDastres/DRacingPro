@@ -1,0 +1,38 @@
+name: Lighthouse
+
+on:
+  pull_request:
+    paths:
+      - 'apps/frontend/**'
+      - 'lighthouserc.json'
+      - '.github/workflows/lighthouse.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.32.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.6
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @dracing/contracts build
+      - run: pnpm --filter @dracing/frontend build
+      # lhci via dlx para no agregarlo como dependencia ni tocar el lockfile.
+      - run: pnpm dlx @lhci/cli@0.14.0 autorun
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lighthouse-report
+          path: .lighthouseci
+          retention-days: 14
