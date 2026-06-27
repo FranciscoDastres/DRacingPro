@@ -1,7 +1,7 @@
 import { createDatabaseClient } from '@dracing/database';
 
 import { buildApp } from './app.js';
-import { parseEnvironment } from './config/env.js';
+import { parseEnvironment, resolveTrustProxy } from './config/env.js';
 import { AdminService } from './modules/admin/application/admin-service.js';
 import { AppointmentService } from './modules/appointments/application/appointment-service.js';
 import { SessionService } from './modules/auth/application/session-service.js';
@@ -85,12 +85,31 @@ const app = await buildApp({
   services: {
     repository: new PrismaServiceRepository(database),
   },
+  trustProxy: resolveTrustProxy(environment),
   workshopAdmin: {
     appOrigin: environment.APP_ORIGIN,
     sessions,
     workshop: new WorkshopAdminService(database),
   },
 });
+
+// Periodically reconcile open payments against Flow so a lost webhook still
+// confirms a paid booking (defense in depth). Runs before expiry on its own
+// cadence so customers see confirmation even while the hold is still valid.
+const RECONCILE_INTERVAL_MS = 3 * 60_000;
+const reconcileTimer = setInterval(() => {
+  paymentService
+    .reconcilePendingPayments()
+    .then((confirmed) => {
+      if (confirmed > 0) {
+        app.log.info({ confirmed }, 'Reconciled paid payments from Flow');
+      }
+    })
+    .catch((error: unknown) => {
+      app.log.error({ err: error }, 'Failed to reconcile pending payments');
+    });
+}, RECONCILE_INTERVAL_MS);
+reconcileTimer.unref();
 
 // Periodically release slots whose payment hold elapsed without confirmation.
 const EXPIRY_INTERVAL_MS = 5 * 60_000;
@@ -109,6 +128,7 @@ const expiryTimer = setInterval(() => {
 expiryTimer.unref();
 
 app.addHook('onClose', async () => {
+  clearInterval(reconcileTimer);
   clearInterval(expiryTimer);
   await database.$disconnect();
 });

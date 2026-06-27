@@ -1,0 +1,25 @@
+version: 2
+updates:
+  # Dependencias de npm del monorepo (raíz + workspaces de pnpm).
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      # Agrupa parches/menores para reducir ruido de PRs.
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    labels:
+      - dependencies
+
+  # Acciones de GitHub usadas en los workflows de CI.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+      - ci

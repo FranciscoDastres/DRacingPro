@@ -54,6 +54,12 @@ const environmentSchema = z
     // WhatsApp coordination provider. Only 'noop' is implemented today; future
     // providers (e.g. 'twilio') are selected here without touching call sites.
     WHATSAPP_PROVIDER: optionalString,
+    // How much to trust X-Forwarded-* headers for the client IP. Leave empty to
+    // use the safe per-environment default (a single nginx hop in production, no
+    // trust locally). Accepts a hop count ("1") or an IP/CIDR allowlist
+    // ("10.0.0.0/8,127.0.0.1"). Never set to "true" on a directly-exposed API:
+    // it lets anyone spoof their IP and bypass per-IP rate limiting.
+    TRUSTED_PROXY: optionalString,
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== 'production') return;
@@ -82,4 +88,21 @@ export function parseEnvironment(
   input: NodeJS.ProcessEnv = process.env,
 ): Environment {
   return environmentSchema.parse(input);
+}
+
+// Resolves the value passed to Fastify's `trustProxy`. Returning `false` makes
+// Fastify use the raw socket address, so a forged `X-Forwarded-For` cannot
+// poison `request.ip` (which feeds rate limiting and audit logs).
+export function resolveTrustProxy(
+  env: Environment,
+): boolean | number | string {
+  const raw = env.TRUSTED_PROXY?.trim();
+  if (raw === undefined || raw === '') {
+    return env.NODE_ENV === 'production' ? 1 : false;
+  }
+  if (raw === 'true') return true;
+  if (raw === 'false') return false;
+  if (/^\d+$/.test(raw)) return Number(raw);
+  // Comma-separated IP/CIDR allowlist handed straight to Fastify.
+  return raw;
 }

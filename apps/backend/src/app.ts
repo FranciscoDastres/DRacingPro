@@ -2,7 +2,10 @@ import cookie from '@fastify/cookie';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
-import Fastify, { type FastifyInstance } from 'fastify';
+import Fastify, {
+  type FastifyInstance,
+  type FastifyServerOptions,
+} from 'fastify';
 
 import {
   adminRoutes,
@@ -46,11 +49,39 @@ export interface BuildAppOptions {
   checkDatabase: () => Promise<void>;
   cookieSecret?: string;
   customer?: CustomerRoutesOptions;
-  logger?: boolean;
+  logger?: FastifyServerOptions['logger'];
   motorcycles?: MotorcycleRoutesOptions;
   payments?: PaymentRoutesOptions;
   services?: ServiceRoutesOptions;
+  // Value for Fastify's `trustProxy`. Defaults to `false` (use the socket IP) so
+  // forged `X-Forwarded-For` headers cannot poison `request.ip`.
+  trustProxy?: boolean | number | string;
   workshopAdmin?: WorkshopAdminRoutesOptions;
+}
+
+// Header keys whose values are secrets (session cookie, bearer token). pino
+// strips them from any logged object so they never reach the log sink, even if
+// a custom log call or a changed serializer includes raw headers.
+const REDACTED_LOG_PATHS = [
+  'req.headers.cookie',
+  'req.headers.authorization',
+  'res.headers["set-cookie"]',
+  'headers.cookie',
+  'headers.authorization',
+  'headers["set-cookie"]',
+];
+
+// Apply the redaction config whenever logging is enabled, preserving any extra
+// pino options (e.g. a custom `stream` in tests).
+export function resolveLoggerOptions(
+  logger: FastifyServerOptions['logger'],
+): NonNullable<FastifyServerOptions['logger']> {
+  if (logger === false) return false;
+  const redact = { paths: REDACTED_LOG_PATHS, remove: true };
+  if (logger === undefined || logger === true) {
+    return { redact };
+  }
+  return { redact, ...(logger as Record<string, unknown>) };
 }
 
 export async function buildApp({
@@ -65,12 +96,13 @@ export async function buildApp({
   motorcycles,
   payments,
   services,
+  trustProxy = false,
   workshopAdmin,
 }: BuildAppOptions): Promise<FastifyInstance> {
   const app = Fastify({
     disableRequestLogging: false,
-    logger,
-    trustProxy: true,
+    logger: resolveLoggerOptions(logger),
+    trustProxy,
   });
 
   // Security headers (X-Content-Type-Options, X-Frame-Options, HSTS, etc.).

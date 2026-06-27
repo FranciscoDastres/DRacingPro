@@ -41,6 +41,9 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+      # Falla el build ante dependencias con CVE de severidad alta o crítica.
+      # Las moderadas/bajas no bloquean; revisar con `pnpm audit` localmente.
+      - run: pnpm audit --audit-level=high
       - run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f database/migrations/001_initial_schema.sql
       - run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f database/migrations/002_seed_reference_data.sql
       - run: pnpm lint
