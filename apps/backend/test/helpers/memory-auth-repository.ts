@@ -17,10 +17,17 @@ export const testUser: AuthUser = {
 };
 
 export class MemoryAuthRepository implements AuthRepository {
+  anonymizedUserId: string | null = null;
   passwordHash: string | null = null;
   revoked = false;
   revokedAllForUserId: string | null = null;
   user: AuthUser | null = testUser;
+
+  async anonymizeUserAccount(userId: string): Promise<void> {
+    this.anonymizedUserId = userId;
+    this.revoked = true;
+    this.user = null;
+  }
 
   async createSession(
     _userId: string,

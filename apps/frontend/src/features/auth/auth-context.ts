@@ -6,6 +6,7 @@ import type {
 import { createContext, useContext } from 'react';
 
 export interface AuthContextValue {
+  deleteAccount: () => Promise<void>;
   isLoading: boolean;
   logout: () => Promise<void>;
   logoutEverywhere: () => Promise<void>;

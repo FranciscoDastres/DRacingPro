@@ -206,6 +206,25 @@ export const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (
     return reply.status(204).send();
   });
 
+  // Derecho de supresión (Ley 21.719): el cliente elimina su cuenta. Anonimiza
+  // sus datos personales y revoca sus sesiones; las boletas se conservan por
+  // obligación tributaria. El administrador (operador del negocio) no puede
+  // autoeliminarse por esta vía.
+  app.delete('/me', async (request, reply) => {
+    if (!hasTrustedOrigin(request, options.appOrigin)) {
+      return reply.status(403).send({ error: 'invalid_origin' });
+    }
+    const user = await requireUser(request, reply, options.sessions);
+    if (!user) return;
+    if (user.role === 'admin') {
+      return reply.status(403).send({ error: 'admin_cannot_self_delete' });
+    }
+
+    await options.sessions.deleteAccount(user.id);
+    reply.clearCookie(SESSION_COOKIE, { path: '/' });
+    return reply.status(204).send();
+  });
+
   // "Cerrar sesión en todos los dispositivos": revoca todas las sesiones del
   // usuario autenticado, no solo la actual.
   app.post('/logout-all', async (request, reply) => {

@@ -1,17 +1,24 @@
 import { type FormEvent, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Field, Input } from '../../components/ui/Field';
 import { Icon } from '../../components/ui/Icon';
+import { Modal } from '../../components/ui/Modal';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { useAuth } from '../auth/auth-context';
 
 export function AccountPage() {
-  const { user, updateProfile } = useAuth();
+  const { deleteAccount, user, updateProfile } = useAuth();
+  const navigate = useNavigate();
   const [displayName, setDisplayName] = useState(user?.displayName ?? '');
   const [phone, setPhone] = useState(user?.phone ?? '');
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>(
+    'idle',
+  );
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteState, setDeleteState] = useState<'idle' | 'deleting' | 'error'>(
     'idle',
   );
 
@@ -23,6 +30,17 @@ export function AccountPage() {
       setStatus('saved');
     } catch {
       setStatus('error');
+    }
+  };
+
+  const confirmDelete = async () => {
+    setDeleteState('deleting');
+    try {
+      await deleteAccount();
+      setDeleteOpen(false);
+      navigate('/', { replace: true });
+    } catch {
+      setDeleteState('error');
     }
   };
 
@@ -100,6 +118,64 @@ export function AccountPage() {
           </div>
         </form>
       </Card>
+
+      <Card className="mt-6 border-[#ff5a66]/25 p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-display text-base font-bold text-[#ff8088]">
+              Eliminar mi cuenta
+            </h2>
+            <p className="text-muted mt-1 max-w-md text-sm">
+              Se anonimizan tus datos personales y se cierran todas tus
+              sesiones. Tus boletas se conservan por obligación tributaria. Esta
+              acción no se puede deshacer.
+            </p>
+          </div>
+          <Button
+            icon="trash"
+            onClick={() => {
+              setDeleteState('idle');
+              setDeleteOpen(true);
+            }}
+            variant="danger"
+          >
+            Eliminar mi cuenta
+          </Button>
+        </div>
+      </Card>
+
+      <Modal
+        eyebrow="Acción irreversible"
+        footer={
+          <>
+            <Button onClick={() => setDeleteOpen(false)} variant="ghost">
+              Cancelar
+            </Button>
+            <Button
+              loading={deleteState === 'deleting'}
+              onClick={() => void confirmDelete()}
+              variant="danger"
+            >
+              Eliminar definitivamente
+            </Button>
+          </>
+        }
+        onClose={() => setDeleteOpen(false)}
+        open={deleteOpen}
+        title="¿Eliminar tu cuenta?"
+      >
+        <p className="text-muted text-sm leading-relaxed">
+          Anonimizaremos tu nombre, correo, teléfono y los datos de tus motos, y
+          cerraremos todas tus sesiones. No podrás volver a entrar con esta
+          cuenta. Tus boletas se conservan sin tus datos personales, según lo
+          exige la normativa tributaria.
+        </p>
+        {deleteState === 'error' && (
+          <p className="mt-3 text-sm font-semibold text-[#ff8088]">
+            No se pudo eliminar la cuenta. Inténtalo nuevamente.
+          </p>
+        )}
+      </Modal>
     </div>
   );
 }

@@ -314,4 +314,120 @@ describe('authentication routes', () => {
     expect(response.statusCode).toBe(401);
     await app.close();
   });
+
+  it('anonymizes the account on delete, clears the cookie and ends the session', async () => {
+    const repository = new MemoryAuthRepository();
+    const app = await buildApp({
+      appOrigin: 'http://localhost:5173',
+      auth: {
+        apiOrigin: 'http://localhost:3000',
+        appOrigin: 'http://localhost:5173',
+        secureCookies: false,
+        sessions: new SessionService(repository),
+      },
+      checkDatabase: async () => undefined,
+      logger: false,
+    });
+
+    const response = await app.inject({
+      headers: {
+        cookie: 'drp_session=test-session',
+        origin: 'http://localhost:5173',
+      },
+      method: 'DELETE',
+      url: '/v1/auth/me',
+    });
+    expect(response.statusCode).toBe(204);
+    expect(response.headers['set-cookie']).toBeDefined();
+    expect(repository.anonymizedUserId).toBe(testUser.id);
+
+    // The session no longer authenticates after the account is deleted.
+    const me = await app.inject({
+      headers: { cookie: 'drp_session=test-session' },
+      method: 'GET',
+      url: '/v1/auth/me',
+    });
+    expect(me.statusCode).toBe(401);
+    await app.close();
+  });
+
+  it('rejects account deletion from an untrusted origin', async () => {
+    const repository = new MemoryAuthRepository();
+    const app = await buildApp({
+      appOrigin: 'http://localhost:5173',
+      auth: {
+        apiOrigin: 'http://localhost:3000',
+        appOrigin: 'http://localhost:5173',
+        secureCookies: false,
+        sessions: new SessionService(repository),
+      },
+      checkDatabase: async () => undefined,
+      logger: false,
+    });
+
+    const response = await app.inject({
+      headers: {
+        cookie: 'drp_session=test-session',
+        origin: 'http://evil.example',
+      },
+      method: 'DELETE',
+      url: '/v1/auth/me',
+    });
+    expect(response.statusCode).toBe(403);
+    expect(repository.anonymizedUserId).toBeNull();
+    await app.close();
+  });
+
+  it('rejects account deletion when not authenticated', async () => {
+    const repository = new MemoryAuthRepository();
+    repository.user = null;
+    const app = await buildApp({
+      appOrigin: 'http://localhost:5173',
+      auth: {
+        apiOrigin: 'http://localhost:3000',
+        appOrigin: 'http://localhost:5173',
+        secureCookies: false,
+        sessions: new SessionService(repository),
+      },
+      checkDatabase: async () => undefined,
+      logger: false,
+    });
+
+    const response = await app.inject({
+      headers: { origin: 'http://localhost:5173' },
+      method: 'DELETE',
+      url: '/v1/auth/me',
+    });
+    expect(response.statusCode).toBe(401);
+    expect(repository.anonymizedUserId).toBeNull();
+    await app.close();
+  });
+
+  it('refuses to delete the administrator account', async () => {
+    const repository = new MemoryAuthRepository();
+    repository.user = { ...testUser, role: 'admin' };
+    const app = await buildApp({
+      appOrigin: 'http://localhost:5173',
+      auth: {
+        apiOrigin: 'http://localhost:3000',
+        appOrigin: 'http://localhost:5173',
+        secureCookies: false,
+        sessions: new SessionService(repository),
+      },
+      checkDatabase: async () => undefined,
+      logger: false,
+    });
+
+    const response = await app.inject({
+      headers: {
+        cookie: 'drp_session=test-session',
+        origin: 'http://localhost:5173',
+      },
+      method: 'DELETE',
+      url: '/v1/auth/me',
+    });
+    expect(response.statusCode).toBe(403);
+    expect(repository.anonymizedUserId).toBeNull();
+    await app.close();
+  });
 });

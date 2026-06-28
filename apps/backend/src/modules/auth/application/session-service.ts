@@ -90,6 +90,13 @@ export class SessionService {
   async revokeAllSessions(userId: string): Promise<number> {
     return this.repository.revokeAllSessionsForUser(userId);
   }
+
+  // Derecho de supresión (Ley 21.719): anonymizes the user's personal data and
+  // revokes their sessions. Financial records (invoices) are retained to comply
+  // with tax-retention obligations.
+  async deleteAccount(userId: string): Promise<void> {
+    await this.repository.anonymizeUserAccount(userId);
+  }
 }
 
 export function hashSessionToken(token: string): Uint8Array<ArrayBuffer> {

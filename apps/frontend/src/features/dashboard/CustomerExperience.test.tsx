@@ -117,6 +117,7 @@ function renderPage(element: React.ReactNode, withAuth = false) {
     withAuth ? (
       <AuthContext.Provider
         value={{
+          deleteAccount: async () => undefined,
           isLoading: false,
           logout: async () => undefined,
           logoutEverywhere: async () => undefined,
