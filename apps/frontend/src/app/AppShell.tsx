@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 
+import { Button } from '../components/ui/Button';
 import { Icon, type IconName } from '../components/ui/Icon';
+import { Modal } from '../components/ui/Modal';
 import { useAuth } from '../features/auth/auth-context';
 
 interface NavItem {
@@ -27,13 +30,26 @@ const adminNav: NavItem[] = [
 ];
 
 export function AppShell() {
-  const { logout, user } = useAuth();
+  const { logout, logoutEverywhere, user } = useAuth();
   const navigate = useNavigate();
   const isAdmin = user?.role === 'admin';
+  const [logoutAllOpen, setLogoutAllOpen] = useState(false);
+  const [logoutAllPending, setLogoutAllPending] = useState(false);
 
   const handleLogout = async () => {
     await logout();
     navigate('/', { replace: true });
+  };
+
+  const handleLogoutEverywhere = async () => {
+    setLogoutAllPending(true);
+    try {
+      await logoutEverywhere();
+      setLogoutAllOpen(false);
+      navigate('/', { replace: true });
+    } finally {
+      setLogoutAllPending(false);
+    }
   };
 
   const initials = (user?.displayName ?? 'D R')
@@ -87,6 +103,17 @@ export function AppShell() {
                 {initials}
               </span>
             </div>
+            {/* Closing every session is destructive (it ends this one too), so
+                it lives behind a confirmation rather than next to plain "Salir". */}
+            <button
+              aria-label="Cerrar sesión en todos los dispositivos"
+              className="text-muted hover:border-primary/50 hover:text-foreground flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold transition"
+              onClick={() => setLogoutAllOpen(true)}
+              title="Cerrar sesión en todos los dispositivos"
+              type="button"
+            >
+              <Icon className="size-4" name="shield" />
+            </button>
             <button
               className="text-muted hover:border-primary/50 hover:text-foreground flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold transition"
               onClick={() => void handleLogout()}
@@ -98,6 +125,37 @@ export function AppShell() {
           </div>
         </div>
       </header>
+
+      <Modal
+        eyebrow="Seguridad"
+        footer={
+          <>
+            <Button
+              onClick={() => setLogoutAllOpen(false)}
+              variant="ghost"
+            >
+              Cancelar
+            </Button>
+            <Button
+              loading={logoutAllPending}
+              onClick={() => void handleLogoutEverywhere()}
+              variant="danger"
+            >
+              Cerrar todas
+            </Button>
+          </>
+        }
+        onClose={() => setLogoutAllOpen(false)}
+        open={logoutAllOpen}
+        title="Cerrar sesión en todos los dispositivos"
+      >
+        <p className="text-muted text-sm leading-relaxed">
+          Se cerrarán todas tus sesiones activas, incluida la de este
+          dispositivo. Tendrás que volver a iniciar sesión en todas partes.
+          Útil si perdiste un equipo o crees que alguien más tiene acceso a tu
+          cuenta.
+        </p>
+      </Modal>
 
       <div className="mx-auto grid max-w-[1600px] lg:grid-cols-[240px_minmax(0,1fr)]">
         <nav

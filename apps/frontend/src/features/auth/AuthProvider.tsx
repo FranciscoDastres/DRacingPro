@@ -28,6 +28,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
     mutationFn: () => apiClient.post<void>('/v1/auth/logout'),
     onSuccess: () => queryClient.setQueryData(['current-user'], null),
   });
+  const { mutateAsync: logoutEverywhere } = useMutation({
+    mutationFn: () => apiClient.post<void>('/v1/auth/logout-all'),
+    onSuccess: () => queryClient.setQueryData(['current-user'], null),
+  });
   const { mutateAsync: signInAdmin } = useMutation({
     mutationFn: (input: AdminLoginInput) =>
       apiClient.post<CurrentUser>('/v1/auth/login', input),
@@ -47,6 +51,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     () => ({
       isLoading: userQuery.isLoading,
       logout: async () => logout(),
+      logoutEverywhere: async () => logoutEverywhere(),
       signInAdmin,
       signInAsDeveloper,
       updateProfile,
@@ -54,6 +59,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }),
     [
       logout,
+      logoutEverywhere,
       signInAdmin,
       signInAsDeveloper,
       updateProfile,
