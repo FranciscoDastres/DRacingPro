@@ -119,6 +119,7 @@ function renderPage(element: React.ReactNode, withAuth = false) {
         value={{
           isLoading: false,
           logout: async () => undefined,
+          logoutEverywhere: async () => undefined,
           signInAdmin: async () => {
             throw new Error();
           },
