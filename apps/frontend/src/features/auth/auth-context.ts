@@ -8,6 +8,7 @@ import { createContext, useContext } from 'react';
 export interface AuthContextValue {
   isLoading: boolean;
   logout: () => Promise<void>;
+  logoutEverywhere: () => Promise<void>;
   signInAdmin: (input: AdminLoginInput) => Promise<CurrentUser>;
   signInAsDeveloper: () => Promise<CurrentUser>;
   updateProfile: (input: UpdateProfileInput) => Promise<CurrentUser>;
