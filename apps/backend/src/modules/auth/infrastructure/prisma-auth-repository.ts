@@ -12,6 +12,70 @@ import type {
 export class PrismaAuthRepository implements AuthRepository {
   constructor(private readonly database: DatabaseClient) {}
 
+  // Derecho de supresión (Ley 21.719). Scrubs the user's personal data in a
+  // single transaction while RETAINING invoices (tax-retention obligation).
+  async anonymizeUserAccount(userId: string): Promise<void> {
+    const now = new Date();
+    await this.database.$transaction(async (transaction) => {
+      // 1. Replace the user's direct PII with a unique tombstone (email is
+      //    unique, so it must stay collision-free) and mark the row deleted.
+      await transaction.users.update({
+        data: {
+          avatar_url: null,
+          deleted_at: now,
+          display_name: 'Cuenta eliminada',
+          email: `deleted-${userId}@deleted.invalid`,
+          is_active: false,
+          password_hash: null,
+          phone: null,
+        },
+        where: { id: userId },
+      });
+
+      // 2. Drop the external identity link: provider_subject is PII and would
+      //    otherwise let the person sign back into the anonymized account.
+      await transaction.oauth_accounts.deleteMany({
+        where: { user_id: userId },
+      });
+
+      // 3. Revoke every session and scrub its device fingerprint.
+      await transaction.auth_sessions.updateMany({
+        data: { ip_address: null, revoked_at: now, user_agent: null },
+        where: { user_id: userId },
+      });
+
+      // 4. Clear vehicle identifiers tied to the person (plate/VIN are unique).
+      await transaction.motorcycles.updateMany({
+        data: {
+          color: null,
+          is_active: false,
+          license_plate: null,
+          nickname: null,
+          notes: null,
+          vin: null,
+        },
+        where: { owner_user_id: userId },
+      });
+
+      // 5. Clear PII captured on the user's appointments.
+      await transaction.appointments.updateMany({
+        data: { customer_notes: null, whatsapp_phone: null },
+        where: { customer_user_id: userId },
+      });
+
+      // 6. Record the erasure for accountability.
+      await transaction.audit_logs.create({
+        data: {
+          action: 'user.account_anonymized',
+          actor_user_id: userId,
+          entity_id: userId,
+          entity_type: 'user',
+          metadata: { law: 'ley_21719', reason: 'data_subject_erasure' },
+        },
+      });
+    });
+  }
+
   async createSession(
     userId: string,
     tokenHash: Uint8Array<ArrayBuffer>,

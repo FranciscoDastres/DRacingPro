@@ -32,6 +32,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
     mutationFn: () => apiClient.post<void>('/v1/auth/logout-all'),
     onSuccess: () => queryClient.setQueryData(['current-user'], null),
   });
+  const { mutateAsync: deleteAccount } = useMutation({
+    mutationFn: () => apiClient.delete('/v1/auth/me'),
+    onSuccess: () => queryClient.setQueryData(['current-user'], null),
+  });
   const { mutateAsync: signInAdmin } = useMutation({
     mutationFn: (input: AdminLoginInput) =>
       apiClient.post<CurrentUser>('/v1/auth/login', input),
@@ -49,6 +53,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const value = useMemo<AuthContextValue>(
     () => ({
+      deleteAccount: async () => {
+        await deleteAccount();
+      },
       isLoading: userQuery.isLoading,
       logout: async () => logout(),
       logoutEverywhere: async () => logoutEverywhere(),
@@ -58,6 +65,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       user: userQuery.data ?? null,
     }),
     [
+      deleteAccount,
       logout,
       logoutEverywhere,
       signInAdmin,

@@ -32,6 +32,7 @@ export interface LocalAdminCredentials {
 }
 
 export interface AuthRepository {
+  anonymizeUserAccount(userId: string): Promise<void>;
   createSession(
     userId: string,
     tokenHash: Uint8Array<ArrayBuffer>,
