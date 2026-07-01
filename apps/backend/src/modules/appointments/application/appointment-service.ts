@@ -1,4 +1,3 @@
-import { TZDate } from '@date-fns/tz';
 import type {
   AdminAppointment,
   AdminAppointmentFilters,
@@ -16,17 +15,32 @@ import type {
 } from '@dracing/contracts';
 import type { DatabaseClient } from '@dracing/database';
 
-const WORKSHOP_TIME_ZONE = 'America/Santiago';
-const ACTIVE_STATUSES = [
-  // A slot held while its Flow payment is pending must keep blocking the slot
-  // so two customers can't book the same time during the payment window.
-  'pending_payment',
-  'requested',
-  'confirmed',
-  'checked_in',
-  'in_service',
-  'ready',
-] as const;
+import {
+  AppointmentConflictError,
+  AppointmentInputError,
+  AppointmentTransitionError,
+} from './appointment-errors.js';
+import {
+  adminAppointmentInclude,
+  appointmentInclude,
+  mapAdminAppointment,
+  mapAppointment,
+  mapCustomerUpdate,
+  mapServiceBay,
+} from './appointment-mappers.js';
+import {
+  ACTIVE_STATUSES,
+  ALLOWED_STATUS_TRANSITIONS,
+  CUSTOMER_CANCELLABLE_STATUSES,
+} from './appointment-rules.js';
+import { computeAvailability } from './availability.js';
+import { formatWorkshopDate, getWorkshopDay } from './workshop-calendar.js';
+
+export {
+  AppointmentConflictError,
+  AppointmentInputError,
+  AppointmentTransitionError,
+} from './appointment-errors.js';
 
 export class AppointmentService {
   constructor(private readonly database: DatabaseClient) {}
@@ -35,76 +49,7 @@ export class AppointmentService {
     serviceIds: string[],
     date: string,
   ): Promise<AvailabilitySlot[]> {
-    const services = await this.database.services.findMany({
-      where: { id: { in: serviceIds }, is_active: true },
-    });
-    if (services.length !== new Set(serviceIds).size) return [];
-
-    const durationMinutes = services.reduce(
-      (total, service) => total + service.duration_minutes,
-      0,
-    );
-    const { dayEnd, dayStart, weekday } = getWorkshopDay(date);
-    const databaseDate = new Date(`${date}T00:00:00.000Z`);
-    const [hours, bays, appointments, exceptions] = await Promise.all([
-      this.database.business_hours.findMany({
-        orderBy: { opens_at: 'asc' },
-        where: {
-          valid_from: { lte: databaseDate },
-          OR: [{ valid_until: null }, { valid_until: { gte: databaseDate } }],
-          weekday,
-        },
-      }),
-      this.database.service_bays.findMany({ where: { is_active: true } }),
-      this.database.appointments.findMany({
-        select: { ends_at: true, starts_at: true },
-        where: {
-          ends_at: { gt: dayStart },
-          starts_at: { lt: dayEnd },
-          status: { in: [...ACTIVE_STATUSES] },
-        },
-      }),
-      this.database.schedule_exceptions.findMany({
-        where: { ends_at: { gt: dayStart }, starts_at: { lt: dayEnd } },
-      }),
-    ]);
-
-    const slots: AvailabilitySlot[] = [];
-    for (const interval of hours) {
-      const intervalStart = workshopDateAtTime(date, interval.opens_at);
-      const intervalEnd = workshopDateAtTime(date, interval.closes_at);
-      for (
-        let startsAt = intervalStart;
-        startsAt.getTime() + durationMinutes * 60_000 <= intervalEnd.getTime();
-        startsAt = new Date(startsAt.getTime() + interval.slot_minutes * 60_000)
-      ) {
-        const endsAt = new Date(startsAt.getTime() + durationMinutes * 60_000);
-        if (startsAt.getTime() <= Date.now()) continue;
-        if (isClosedByException(startsAt, endsAt, exceptions)) continue;
-
-        const capacityOverride = getCapacityOverride(
-          startsAt,
-          endsAt,
-          exceptions,
-        );
-        const hasConflictingAppointment = appointments.some((appointment) =>
-          overlaps(
-            startsAt,
-            endsAt,
-            appointment.starts_at,
-            appointment.ends_at,
-          ),
-        );
-        const capacity = capacityOverride ?? bays.length;
-        if (!hasConflictingAppointment && bays.length > 0 && capacity > 0) {
-          slots.push({
-            endsAt: endsAt.toISOString(),
-            startsAt: new Date(startsAt).toISOString(),
-          });
-        }
-      }
-    }
-    return slots;
+    return computeAvailability(this.database, serviceIds, date);
   }
 
   async create(
@@ -112,12 +57,7 @@ export class AppointmentService {
     input: CreateAppointmentInput,
   ): Promise<Appointment> {
     const requestedStart = new Date(input.startsAt);
-    const workshopDate = new Intl.DateTimeFormat('en-CA', {
-      day: '2-digit',
-      month: '2-digit',
-      timeZone: WORKSHOP_TIME_ZONE,
-      year: 'numeric',
-    }).format(requestedStart);
+    const workshopDate = formatWorkshopDate(requestedStart);
     const slots = await this.getAvailability(input.serviceIds, workshopDate);
     if (!slots.some((slot) => slot.startsAt === requestedStart.toISOString())) {
       throw new AppointmentConflictError();
@@ -274,12 +214,7 @@ export class AppointmentService {
     const serviceIds = current.appointment_services.map(
       (service) => service.service_id,
     );
-    const workshopDate = new Intl.DateTimeFormat('en-CA', {
-      day: '2-digit',
-      month: '2-digit',
-      timeZone: WORKSHOP_TIME_ZONE,
-      year: 'numeric',
-    }).format(requestedStart);
+    const workshopDate = formatWorkshopDate(requestedStart);
     const slots = await this.getAvailability(serviceIds, workshopDate);
     const slot = slots.find(
       (candidate) => candidate.startsAt === requestedStart.toISOString(),
@@ -567,221 +502,4 @@ export class AppointmentService {
       ),
     );
   }
-}
-
-export class AppointmentConflictError extends Error {}
-export class AppointmentInputError extends Error {}
-export class AppointmentTransitionError extends Error {}
-
-const CUSTOMER_CANCELLABLE_STATUSES: Appointment['status'][] = [
-  'requested',
-  'confirmed',
-];
-
-const ALLOWED_STATUS_TRANSITIONS = {
-  cancelled: [],
-  checked_in: ['in_service', 'cancelled'],
-  completed: [],
-  confirmed: ['checked_in', 'in_service', 'cancelled', 'no_show'],
-  in_service: ['ready'],
-  no_show: [],
-  pending_payment: ['confirmed', 'cancelled'],
-  ready: ['completed'],
-  requested: ['confirmed', 'cancelled'],
-} as const satisfies Record<
-  Appointment['status'],
-  readonly Appointment['status'][]
->;
-
-const appointmentInclude = {
-  appointment_services: true,
-  motorcycles: true,
-} as const;
-const adminAppointmentInclude = {
-  ...appointmentInclude,
-  service_bays: true,
-  users: true,
-} as const;
-
-function mapAppointment(appointment: {
-  appointment_services: Array<{
-    currency: string;
-    quantity: number;
-    service_id: string;
-    service_name_snapshot: string;
-    unit_price_cents: number;
-  }>;
-  ends_at: Date;
-  id: string;
-  motorcycles: {
-    id: string;
-    make: string;
-    model: string;
-    nickname: string | null;
-  };
-  starts_at: Date;
-  status: Appointment['status'];
-  whatsapp_phone: string | null;
-}): Appointment {
-  return {
-    endsAt: appointment.ends_at.toISOString(),
-    id: appointment.id,
-    motorcycle: {
-      id: appointment.motorcycles.id,
-      label:
-        appointment.motorcycles.nickname ??
-        `${appointment.motorcycles.make} ${appointment.motorcycles.model}`,
-    },
-    services: appointment.appointment_services.map((service) => ({
-      currency: service.currency,
-      id: service.service_id,
-      name: service.service_name_snapshot,
-      unitPrice: service.unit_price_cents,
-    })),
-    startsAt: appointment.starts_at.toISOString(),
-    status: appointment.status,
-    total: appointment.appointment_services.reduce(
-      (sum, service) => sum + service.unit_price_cents * service.quantity,
-      0,
-    ),
-    whatsappPhone: appointment.whatsapp_phone,
-  };
-}
-
-function mapAdminAppointment(
-  appointment: Parameters<typeof mapAppointment>[0] & {
-    service_bays: {
-      description: string | null;
-      id: string;
-      name: string;
-    };
-    users: {
-      display_name: string;
-      email: string;
-      id: string;
-      phone: string | null;
-    };
-  },
-): AdminAppointment {
-  return {
-    ...mapAppointment(appointment),
-    customer: {
-      displayName: appointment.users.display_name,
-      email: appointment.users.email,
-      id: appointment.users.id,
-      phone: appointment.users.phone,
-    },
-    serviceBay: mapServiceBay(appointment.service_bays),
-  };
-}
-
-function mapServiceBay(serviceBay: {
-  description: string | null;
-  id: string;
-  name: string;
-}): ServiceBay {
-  return {
-    description: serviceBay.description,
-    id: serviceBay.id,
-    name: serviceBay.name,
-  };
-}
-
-function mapCustomerUpdate(
-  update: {
-    appointment_id: string;
-    created_at: Date;
-    id: string;
-    message: string | null;
-    progress_status:
-      | 'received'
-      | 'diagnosing'
-      | 'waiting_approval'
-      | 'repairing'
-      | 'quality_check'
-      | 'ready_for_pickup'
-      | 'delivered';
-  },
-  motorcycleLabel: string,
-): CustomerMotorcycleUpdate {
-  return {
-    appointmentId: update.appointment_id,
-    createdAt: update.created_at.toISOString(),
-    id: update.id,
-    message: update.message,
-    motorcycleLabel,
-    progressStatus: update.progress_status,
-  };
-}
-
-function getWorkshopDay(date: string) {
-  const [year, month, day] = date.split('-').map(Number);
-  if (!year || !month || !day) throw new AppointmentInputError('invalid_date');
-  const dayStart = new TZDate(
-    year,
-    month - 1,
-    day,
-    0,
-    0,
-    0,
-    WORKSHOP_TIME_ZONE,
-  );
-  const dayEnd = new TZDate(
-    year,
-    month - 1,
-    day + 1,
-    0,
-    0,
-    0,
-    WORKSHOP_TIME_ZONE,
-  );
-  return { dayEnd, dayStart, weekday: dayStart.getDay() };
-}
-
-function workshopDateAtTime(date: string, time: Date): Date {
-  const [year, month, day] = date.split('-').map(Number);
-  return new TZDate(
-    year!,
-    month! - 1,
-    day!,
-    time.getUTCHours(),
-    time.getUTCMinutes(),
-    0,
-    WORKSHOP_TIME_ZONE,
-  );
-}
-
-function overlaps(startA: Date, endA: Date, startB: Date, endB: Date): boolean {
-  return startA < endB && endA > startB;
-}
-
-function isClosedByException(
-  startsAt: Date,
-  endsAt: Date,
-  exceptions: Array<{ ends_at: Date; kind: string; starts_at: Date }>,
-): boolean {
-  return exceptions.some(
-    (exception) =>
-      exception.kind === 'closed' &&
-      overlaps(startsAt, endsAt, exception.starts_at, exception.ends_at),
-  );
-}
-
-function getCapacityOverride(
-  startsAt: Date,
-  endsAt: Date,
-  exceptions: Array<{
-    capacity_override: number | null;
-    ends_at: Date;
-    kind: string;
-    starts_at: Date;
-  }>,
-): number | undefined {
-  return (
-    exceptions.find(
-      (exception) =>
-        exception.kind === 'availability_override' &&
-        overlaps(startsAt, endsAt, exception.starts_at, exception.ends_at),
-    )?.capacity_override ?? undefined
-  );
 }
