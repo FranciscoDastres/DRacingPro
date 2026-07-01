@@ -130,10 +130,7 @@ export function AppShell() {
         eyebrow="Seguridad"
         footer={
           <>
-            <Button
-              onClick={() => setLogoutAllOpen(false)}
-              variant="ghost"
-            >
+            <Button onClick={() => setLogoutAllOpen(false)} variant="ghost">
               Cancelar
             </Button>
             <Button
@@ -151,8 +148,8 @@ export function AppShell() {
       >
         <p className="text-muted text-sm leading-relaxed">
           Se cerrarán todas tus sesiones activas, incluida la de este
-          dispositivo. Tendrás que volver a iniciar sesión en todas partes.
-          Útil si perdiste un equipo o crees que alguien más tiene acceso a tu
+          dispositivo. Tendrás que volver a iniciar sesión en todas partes. Útil
+          si perdiste un equipo o crees que alguien más tiene acceso a tu
           cuenta.
         </p>
       </Modal>

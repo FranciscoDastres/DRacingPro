@@ -81,7 +81,10 @@ export const paymentRoutes: FastifyPluginAsync<PaymentRoutesOptions> = async (
     }
     try {
       return reply.send(
-        await options.payments.getStatusView(user.id, params.data.appointmentId),
+        await options.payments.getStatusView(
+          user.id,
+          params.data.appointmentId,
+        ),
       );
     } catch (error) {
       return handlePaymentError(error, reply);

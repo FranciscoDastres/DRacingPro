@@ -93,9 +93,7 @@ export function parseEnvironment(
 // Resolves the value passed to Fastify's `trustProxy`. Returning `false` makes
 // Fastify use the raw socket address, so a forged `X-Forwarded-For` cannot
 // poison `request.ip` (which feeds rate limiting and audit logs).
-export function resolveTrustProxy(
-  env: Environment,
-): boolean | number | string {
+export function resolveTrustProxy(env: Environment): boolean | number | string {
   const raw = env.TRUSTED_PROXY?.trim();
   if (raw === undefined || raw === '') {
     return env.NODE_ENV === 'production' ? 1 : false;

@@ -20,8 +20,8 @@ describe('PrismaAuthRepository.anonymizeUserAccount', () => {
   it('scrubs personal data, drops the identity link and revokes sessions', async () => {
     const tx = buildTransactionMock();
     const database = {
-      $transaction: vi.fn(async (callback: (t: typeof tx) => Promise<unknown>) =>
-        callback(tx),
+      $transaction: vi.fn(
+        async (callback: (t: typeof tx) => Promise<unknown>) => callback(tx),
       ),
     } as unknown as DatabaseClient;
 

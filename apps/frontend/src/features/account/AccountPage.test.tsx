@@ -33,24 +33,22 @@ function renderAccount(fetchMock: ReturnType<typeof vi.fn>) {
 
 describe('AccountPage account deletion', () => {
   it('deletes the account via DELETE /v1/auth/me only after confirmation', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockImplementation(async (input: string) => {
-        if (input.includes('/v1/auth/me')) {
-          return {
-            headers: { get: () => 'application/json' },
-            json: async () => customer,
-            ok: true,
-            status: 200,
-          };
-        }
+    const fetchMock = vi.fn().mockImplementation(async (input: string) => {
+      if (input.includes('/v1/auth/me')) {
         return {
           headers: { get: () => 'application/json' },
-          json: async () => undefined,
+          json: async () => customer,
           ok: true,
-          status: 204,
+          status: 200,
         };
-      });
+      }
+      return {
+        headers: { get: () => 'application/json' },
+        json: async () => undefined,
+        ok: true,
+        status: 204,
+      };
+    });
 
     renderAccount(fetchMock);
 

@@ -168,7 +168,11 @@ export class PaymentService {
     // (so reconciliation won't retry it) and record an audit event for manual
     // review. Amounts are whole CLP pesos on both sides.
     if (status.amount !== payment.amount_cents) {
-      await this.failMismatchedPayment(payment, status, 'payment.amount_mismatch');
+      await this.failMismatchedPayment(
+        payment,
+        status,
+        'payment.amount_mismatch',
+      );
       return;
     }
     if (

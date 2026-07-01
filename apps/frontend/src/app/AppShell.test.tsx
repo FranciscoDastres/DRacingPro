@@ -33,24 +33,22 @@ function renderShell(fetchMock: ReturnType<typeof vi.fn>) {
 
 describe('AppShell logout-all', () => {
   it('confirms before closing every session via /v1/auth/logout-all', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockImplementation(async (input: string) => {
-        if (input.includes('/v1/auth/me')) {
-          return {
-            headers: { get: () => 'application/json' },
-            json: async () => customer,
-            ok: true,
-            status: 200,
-          };
-        }
+    const fetchMock = vi.fn().mockImplementation(async (input: string) => {
+      if (input.includes('/v1/auth/me')) {
         return {
           headers: { get: () => 'application/json' },
-          json: async () => undefined,
+          json: async () => customer,
           ok: true,
-          status: 204,
+          status: 200,
         };
-      });
+      }
+      return {
+        headers: { get: () => 'application/json' },
+        json: async () => undefined,
+        ok: true,
+        status: 204,
+      };
+    });
 
     renderShell(fetchMock);
 

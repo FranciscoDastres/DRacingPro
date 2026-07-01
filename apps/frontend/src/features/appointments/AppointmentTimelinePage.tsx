@@ -65,7 +65,8 @@ export function AppointmentTimelinePage() {
         <Badge tone={statusMeta.tone}>{statusMeta.label}</Badge>
       </div>
       <p className="text-muted mt-2">
-        Ingreso agendado · {dateFormatter.format(new Date(appointment.startsAt))}
+        Ingreso agendado ·{' '}
+        {dateFormatter.format(new Date(appointment.startsAt))}
       </p>
 
       <div className="mt-8 grid gap-5 lg:grid-cols-[1fr_320px]">
@@ -136,8 +137,8 @@ export function AppointmentTimelinePage() {
             </span>
           </div>
           <p className="text-muted mt-3 text-xs">
-            Valores referenciales de la mantención de tu Honda NAVI al momento de
-            agendar.
+            Valores referenciales de la mantención de tu Honda NAVI al momento
+            de agendar.
           </p>
         </Card>
       </div>

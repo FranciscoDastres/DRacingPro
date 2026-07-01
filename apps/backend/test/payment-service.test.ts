@@ -28,7 +28,9 @@ const basePayment = {
   status: 'pending' as const,
 };
 
-function paidStatus(overrides: Partial<FlowStatusResult> = {}): FlowStatusResult {
+function paidStatus(
+  overrides: Partial<FlowStatusResult> = {},
+): FlowStatusResult {
   return {
     amount: 24_990,
     commerceOrder: basePayment.flow_commerce_order,
@@ -191,9 +193,7 @@ describe('PaymentService.reconcilePendingPayments', () => {
       .mockResolvedValueOnce({ status: 'paid' });
     const database = {
       payments: {
-        findMany: vi.fn(async () => [
-          { flow_token: 'tok-1', id: 'pay-1' },
-        ]),
+        findMany: vi.fn(async () => [{ flow_token: 'tok-1', id: 'pay-1' }]),
         findUnique,
       },
       $transaction: vi.fn(
