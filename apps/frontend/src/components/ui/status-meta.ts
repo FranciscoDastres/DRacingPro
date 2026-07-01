@@ -28,7 +28,11 @@ export const APPOINTMENT_STATUS_META: Record<
 
 // Buckets used by the agenda so cancelled/no-show appointments don't clutter
 // the active workflow (see AdminAppointmentsPage).
-export type AgendaBucket = 'pending' | 'in_progress' | 'completed' | 'cancelled';
+export type AgendaBucket =
+  | 'pending'
+  | 'in_progress'
+  | 'completed'
+  | 'cancelled';
 
 export const AGENDA_BUCKET_OF: Record<AppointmentStatus, AgendaBucket> = {
   cancelled: 'cancelled',

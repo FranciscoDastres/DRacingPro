@@ -58,7 +58,9 @@ export function NotificationsPage() {
                   <p className="text-accent text-xs font-semibold">
                     {update.motorcycleLabel}
                   </p>
-                  <Badge tone={PROGRESS_STATUS_META[update.progressStatus].tone}>
+                  <Badge
+                    tone={PROGRESS_STATUS_META[update.progressStatus].tone}
+                  >
                     {PROGRESS_STATUS_META[update.progressStatus].label}
                   </Badge>
                 </div>

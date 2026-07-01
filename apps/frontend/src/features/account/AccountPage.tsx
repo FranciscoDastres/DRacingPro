@@ -98,11 +98,7 @@ export function AccountPage() {
           </Field>
 
           <div className="flex items-center gap-3 pt-1">
-            <Button
-              icon="check"
-              loading={status === 'saving'}
-              type="submit"
-            >
+            <Button icon="check" loading={status === 'saving'} type="submit">
               Guardar cambios
             </Button>
             {status === 'saved' && (

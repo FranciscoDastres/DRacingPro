@@ -7,20 +7,20 @@
 
 ## Inventario de datos personales
 
-| Dato | Tabla / campo | Trato en la supresión |
-|------|---------------|------------------------|
-| Correo | `users.email` | Reemplazado por tombstone único `deleted-<id>@deleted.invalid` |
-| Nombre | `users.display_name` | Reemplazado por `Cuenta eliminada` |
-| Avatar | `users.avatar_url` | `null` |
-| Teléfono | `users.phone` | `null` |
-| Hash de contraseña | `users.password_hash` | `null` |
-| Identidad Google | `oauth_accounts` (`provider_subject`) | Fila eliminada (impide re-login) |
-| WhatsApp | `appointments.whatsapp_phone` | `null` |
-| Notas del cliente | `appointments.customer_notes` | `null` |
-| Apodo / patente / VIN / color / notas de moto | `motorcycles` | `null` (e `is_active = false`) |
-| IP / user-agent de sesión | `auth_sessions` | `null`, sesión revocada |
-| RUT emisor/receptor | `invoices` | **Se conserva** (retención tributaria) |
-| IP en auditoría | `audit_logs.ip_address` | Se conserva (interés legítimo de seguridad) |
+| Dato                                          | Tabla / campo                         | Trato en la supresión                                          |
+| --------------------------------------------- | ------------------------------------- | -------------------------------------------------------------- |
+| Correo                                        | `users.email`                         | Reemplazado por tombstone único `deleted-<id>@deleted.invalid` |
+| Nombre                                        | `users.display_name`                  | Reemplazado por `Cuenta eliminada`                             |
+| Avatar                                        | `users.avatar_url`                    | `null`                                                         |
+| Teléfono                                      | `users.phone`                         | `null`                                                         |
+| Hash de contraseña                            | `users.password_hash`                 | `null`                                                         |
+| Identidad Google                              | `oauth_accounts` (`provider_subject`) | Fila eliminada (impide re-login)                               |
+| WhatsApp                                      | `appointments.whatsapp_phone`         | `null`                                                         |
+| Notas del cliente                             | `appointments.customer_notes`         | `null`                                                         |
+| Apodo / patente / VIN / color / notas de moto | `motorcycles`                         | `null` (e `is_active = false`)                                 |
+| IP / user-agent de sesión                     | `auth_sessions`                       | `null`, sesión revocada                                        |
+| RUT emisor/receptor                           | `invoices`                            | **Se conserva** (retención tributaria)                         |
+| IP en auditoría                               | `audit_logs.ip_address`               | Se conserva (interés legítimo de seguridad)                    |
 
 ## Por qué se conservan las boletas
 
@@ -41,7 +41,7 @@ usuario anonimizado, conservando el monto/folio que exige el SII.
 - **Sesiones:** se revocan todas y se limpia la cookie; el cliente queda
   desconectado de inmediato.
 - **Auditoría:** se registra `user.account_anonymized` en `audit_logs`.
-- **UI:** "Eliminar mi cuenta" en *Mi cuenta*, con modal de confirmación
+- **UI:** "Eliminar mi cuenta" en _Mi cuenta_, con modal de confirmación
   (acción irreversible).
 
 ## Pendiente (producto/legal, fuera del código)

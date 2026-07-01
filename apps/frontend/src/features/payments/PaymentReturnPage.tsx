@@ -1,4 +1,7 @@
-import type { PaymentInitResponse, PaymentStatusView } from '@dracing/contracts';
+import type {
+  PaymentInitResponse,
+  PaymentStatusView,
+} from '@dracing/contracts';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -52,7 +55,9 @@ export function PaymentReturnPage() {
 
   const view = status.data;
   const paid = view?.status === 'paid';
-  const failed = view ? ['failed', 'expired', 'cancelled'].includes(view.status) : false;
+  const failed = view
+    ? ['failed', 'expired', 'cancelled'].includes(view.status)
+    : false;
 
   return (
     <section className="mx-auto max-w-xl py-10">
