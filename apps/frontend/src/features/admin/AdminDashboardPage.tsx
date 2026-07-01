@@ -1,18 +1,6 @@
 import type { AdminAppointment, AdminMetrics } from '@dracing/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import { lazy, Suspense, useMemo, useState } from 'react';
 
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -21,6 +9,19 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { Icon, type IconName } from '../../components/ui/Icon';
 import { formatCLP } from '../../components/ui/money';
 import { apiClient } from '../../lib/api-client';
+
+// recharts pesa ~380 kB; se carga en un chunk aparte para que las métricas
+// del dashboard pinten sin esperar la librería de gráficos.
+const RevenueAreaChart = lazy(() =>
+  import('./DashboardCharts').then((module) => ({
+    default: module.RevenueAreaChart,
+  })),
+);
+const StatusDonutChart = lazy(() =>
+  import('./DashboardCharts').then((module) => ({
+    default: module.StatusDonutChart,
+  })),
+);
 
 const RANGE_OPTIONS = [7, 30, 90] as const;
 const STATUS_LABELS: Record<string, string> = {
@@ -33,7 +34,6 @@ const STATUS_LABELS: Record<string, string> = {
   ready: 'Listas',
   requested: 'Solicitadas',
 };
-const CHART_COLORS = ['#ff2948', '#39e991', '#ffb84d', '#718096', '#9b87f5'];
 
 function isoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -182,73 +182,13 @@ export function AdminDashboardPage() {
                   Servicios completados en el período
                 </p>
               </div>
-              <div
-                className="mt-5 h-72"
-                role="img"
-                aria-label="Gráfico de ingresos diarios"
+              <Suspense
+                fallback={
+                  <div className="mt-5 h-72 animate-pulse rounded-xl bg-white/5" />
+                }
               >
-                <ResponsiveContainer height="100%" width="100%">
-                  <AreaChart
-                    data={revenueData}
-                    margin={{ left: -16, right: 8 }}
-                  >
-                    <defs>
-                      <linearGradient
-                        id="revenueGradient"
-                        x1="0"
-                        x2="0"
-                        y1="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="0%"
-                          stopColor="#ff2948"
-                          stopOpacity={0.42}
-                        />
-                        <stop
-                          offset="100%"
-                          stopColor="#ff2948"
-                          stopOpacity={0}
-                        />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid
-                      stroke="rgba(255,255,255,.055)"
-                      vertical={false}
-                    />
-                    <XAxis
-                      axisLine={false}
-                      dataKey="date"
-                      minTickGap={22}
-                      tick={{ fill: '#8d98a8', fontSize: 10 }}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      axisLine={false}
-                      tick={{ fill: '#8d98a8', fontSize: 10 }}
-                      tickFormatter={(value: number) =>
-                        `$${Math.round(value / 1000)}k`
-                      }
-                      tickLine={false}
-                    />
-                    <Tooltip
-                      contentStyle={tooltipStyle}
-                      formatter={(value) => [
-                        formatCLP(Number(value)),
-                        'Ingresos',
-                      ]}
-                      labelStyle={{ color: '#f5f7fa' }}
-                    />
-                    <Area
-                      dataKey="ingresos"
-                      fill="url(#revenueGradient)"
-                      stroke="#ff2948"
-                      strokeWidth={2.5}
-                      type="monotone"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
+                <RevenueAreaChart data={revenueData} />
+              </Suspense>
             </Card>
 
             <Card className="p-5 sm:p-6">
@@ -257,54 +197,13 @@ export function AdminDashboardPage() {
                 Estados operativos del período
               </p>
               {statusData.length ? (
-                <>
-                  <div
-                    className="mx-auto mt-4 h-44 max-w-60"
-                    role="img"
-                    aria-label="Distribución de citas por estado"
-                  >
-                    <ResponsiveContainer height="100%" width="100%">
-                      <PieChart>
-                        <Pie
-                          data={statusData}
-                          dataKey="value"
-                          innerRadius={52}
-                          outerRadius={72}
-                          paddingAngle={4}
-                          stroke="none"
-                        >
-                          {statusData.map((item, index) => (
-                            <Cell
-                              fill={CHART_COLORS[index % CHART_COLORS.length]!}
-                              key={item.name}
-                            />
-                          ))}
-                        </Pie>
-                        <Tooltip contentStyle={tooltipStyle} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {statusData.slice(0, 6).map((item, index) => (
-                      <div
-                        className="flex items-center gap-2 text-xs"
-                        key={item.name}
-                      >
-                        <span
-                          className="size-2 rounded-full"
-                          style={{
-                            background:
-                              CHART_COLORS[index % CHART_COLORS.length]!,
-                          }}
-                        />
-                        <span className="text-muted truncate">{item.name}</span>
-                        <span className="ml-auto font-semibold">
-                          {item.value}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </>
+                <Suspense
+                  fallback={
+                    <div className="mt-4 h-56 animate-pulse rounded-xl bg-white/5" />
+                  }
+                >
+                  <StatusDonutChart data={statusData} />
+                </Suspense>
               ) : (
                 <p className="text-muted mt-8 text-sm">
                   Sin citas en este período.
@@ -398,14 +297,6 @@ export function AdminDashboardPage() {
     </div>
   );
 }
-
-const tooltipStyle = {
-  background: '#141b24',
-  border: '1px solid rgba(255,255,255,.1)',
-  borderRadius: 12,
-  color: '#f5f7fa',
-  fontSize: 12,
-};
 
 function Metric({
   accent = false,
