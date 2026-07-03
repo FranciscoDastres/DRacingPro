@@ -1,11 +1,15 @@
+import 'reflect-metadata';
+
 import cookie from '@fastify/cookie';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
-import Fastify, {
-  type FastifyInstance,
-  type FastifyServerOptions,
-} from 'fastify';
+import { NestFactory } from '@nestjs/core';
+import {
+  FastifyAdapter,
+  type NestFastifyApplication,
+} from '@nestjs/platform-fastify';
+import type { FastifyServerOptions } from 'fastify';
 
 import {
   adminRoutes,
@@ -19,7 +23,6 @@ import {
   authRoutes,
   type AuthRoutesOptions,
 } from './modules/auth/presentation/routes.js';
-import { healthRoutes } from './modules/health/presentation/routes.js';
 import {
   customerRoutes,
   type CustomerRoutesOptions,
@@ -40,6 +43,7 @@ import {
   type WorkshopAdminRoutesOptions,
   workshopAdminRoutes,
 } from './modules/workshop/presentation/routes.js';
+import { AppModule } from './nest/app.module.js';
 
 export interface BuildAppOptions {
   admin?: AdminRoutesOptions;
@@ -98,12 +102,17 @@ export async function buildApp({
   services,
   trustProxy = false,
   workshopAdmin,
-}: BuildAppOptions): Promise<FastifyInstance> {
-  const app = Fastify({
+}: BuildAppOptions): Promise<NestFastifyApplication> {
+  const adapter = new FastifyAdapter({
     disableRequestLogging: false,
     logger: resolveLoggerOptions(logger),
     trustProxy,
   });
+  const app = await NestFactory.create<NestFastifyApplication>(
+    AppModule.register({ checkDatabase }),
+    adapter,
+    { logger: false },
+  );
 
   // Security headers (X-Content-Type-Options, X-Frame-Options, HSTS, etc.).
   // CORP is relaxed to cross-origin so the separate frontend can consume the API.
@@ -121,11 +130,6 @@ export async function buildApp({
     origin: appOrigin,
   });
   await app.register(cookie, { secret: cookieSecret });
-
-  await app.register(healthRoutes, {
-    checkDatabase,
-    prefix: '/health',
-  });
 
   if (auth) await app.register(authRoutes, { ...auth, prefix: '/v1/auth' });
   if (customer) {
@@ -156,10 +160,7 @@ export async function buildApp({
     await app.register(adminRoutes, { ...admin, prefix: '/v1/admin' });
   }
 
-  app.get('/api', async () => ({
-    name: 'D Racing Pro API',
-    version: '0.1.0',
-  }));
+  await app.init();
 
   return app;
 }

@@ -25,8 +25,9 @@ describe('request logger redaction', () => {
       checkDatabase: async () => undefined,
       logger: { stream },
     });
+    const fastify = app.getHttpAdapter().getInstance();
 
-    app.log.info(
+    fastify.log.info(
       {
         headers: {
           authorization: 'Bearer s3cret-token',

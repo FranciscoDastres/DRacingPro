@@ -7,7 +7,8 @@ especializado en Honda NAVI.
 
 - Monorepo TypeScript con `pnpm`.
 - Frontend SPA: React, Vite, TypeScript y Tailwind CSS.
-- API: Node.js, Fastify y TypeScript, organizada por módulos y capas limpias.
+- API: Node.js, NestJS sobre Fastify y TypeScript, organizada por módulos y
+  capas limpias.
 - Persistencia: PostgreSQL; Prisma se usará como adaptador, no dentro del dominio.
 - Autenticación: Google OAuth 2.0/OIDC para clientes y una única cuenta local de
   administrador, con sesión segura administrada por el backend.
@@ -21,6 +22,7 @@ especializado en Honda NAVI.
 - [UI/UX](docs/ui-ux.md)
 - [Infraestructura y Docker](docs/infrastructure.md)
 - [Desarrollo local](docs/local-development.md)
+- [Migración a NestJS](docs/nestjs-migration.md)
 - [Roadmap](docs/roadmap.md)
 
 La primera migración propuesta está en
