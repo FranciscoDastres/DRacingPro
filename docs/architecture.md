@@ -40,6 +40,7 @@ DRacingPro/
 │       │   │   ├── application/      # puertos compartidos
 │       │   │   ├── infrastructure/   # DB, OAuth, correo, observabilidad
 │       │   │   └── http/             # servidor, plugins, error handler
+│       │   ├── nest/                 # módulo raíz y controladores Nest migrados
 │       │   ├── config/
 │       │   └── server.ts
 │       ├── test/
@@ -63,6 +64,11 @@ DRacingPro/
 ├── pnpm-workspace.yaml
 └── package.json
 ```
+
+El backend corre sobre NestJS con `@nestjs/platform-fastify`. Fastify se conserva
+como adaptador HTTP para mantener compatibilidad con plugins y tests existentes,
+mientras las rutas se migran gradualmente a controladores Nest. La estrategia
+está documentada en [Migración del backend a NestJS](nestjs-migration.md).
 
 Dentro de cada módulo del backend:
 

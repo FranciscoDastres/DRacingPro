@@ -92,6 +92,7 @@ const app = await buildApp({
     workshop: new WorkshopAdminService(database),
   },
 });
+const fastify = app.getHttpAdapter().getInstance();
 
 // Periodically reconcile open payments against Flow so a lost webhook still
 // confirms a paid booking (defense in depth). Runs before expiry on its own
@@ -102,11 +103,14 @@ const reconcileTimer = setInterval(() => {
     .reconcilePendingPayments()
     .then((confirmed) => {
       if (confirmed > 0) {
-        app.log.info({ confirmed }, 'Reconciled paid payments from Flow');
+        fastify.log.info({ confirmed }, 'Reconciled paid payments from Flow');
       }
     })
     .catch((error: unknown) => {
-      app.log.error({ err: error }, 'Failed to reconcile pending payments');
+      fastify.log.error(
+        { err: error },
+        'Failed to reconcile pending payments',
+      );
     });
 }, RECONCILE_INTERVAL_MS);
 reconcileTimer.unref();
@@ -118,16 +122,16 @@ const expiryTimer = setInterval(() => {
     .expireStaleHolds()
     .then((released) => {
       if (released > 0) {
-        app.log.info({ released }, 'Released expired payment holds');
+        fastify.log.info({ released }, 'Released expired payment holds');
       }
     })
     .catch((error: unknown) => {
-      app.log.error({ err: error }, 'Failed to expire payment holds');
+      fastify.log.error({ err: error }, 'Failed to expire payment holds');
     });
 }, EXPIRY_INTERVAL_MS);
 expiryTimer.unref();
 
-app.addHook('onClose', async () => {
+fastify.addHook('onClose', async () => {
   clearInterval(reconcileTimer);
   clearInterval(expiryTimer);
   await database.$disconnect();
@@ -150,7 +154,7 @@ function createGoogleClient(): GoogleOidcClient | undefined {
 }
 
 const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
-  app.log.info({ signal }, 'Shutting down');
+  fastify.log.info({ signal }, 'Shutting down');
   await app.close();
   process.exit(0);
 };
@@ -161,7 +165,7 @@ process.once('SIGTERM', () => void shutdown('SIGTERM'));
 try {
   await app.listen({ host: environment.HOST, port: environment.PORT });
 } catch (error) {
-  app.log.error(error);
+  fastify.log.error(error);
   await app.close();
   process.exit(1);
 }

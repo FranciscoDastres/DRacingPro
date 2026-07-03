@@ -8,8 +8,9 @@
     "node": ">=20.19.0"
   },
   "scripts": {
-    "dev": "pnpm build:packages && pnpm dev:free-ports && pnpm --parallel --filter @dracing/frontend --filter @dracing/backend dev",
-    "dev:free-ports": "fuser -k 5180/tcp 3001/tcp 2>/dev/null || true",
+    "dev": "pnpm build:packages && pnpm dev:free-ports && concurrently -n web,api,ngrok -c blue,green,magenta \"pnpm --filter @dracing/frontend dev\" \"pnpm --filter @dracing/backend dev\" \"pnpm tunnel\"",
+    "dev:free-ports": "fuser -k 5180/tcp 3001/tcp 4040/tcp 2>/dev/null || true",
+    "tunnel": "ngrok http 3001 --url=https://meticulous-todd-nosographically.ngrok-free.dev --log=stdout",
     "build:packages": "pnpm --filter @dracing/contracts build && pnpm --filter @dracing/database build",
     "build": "pnpm -r --if-present build",
     "lint": "eslint . --max-warnings=0",
@@ -28,6 +29,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "concurrently": "^10.0.3",
     "eslint": "^10.5.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
