@@ -107,10 +107,7 @@ const reconcileTimer = setInterval(() => {
       }
     })
     .catch((error: unknown) => {
-      fastify.log.error(
-        { err: error },
-        'Failed to reconcile pending payments',
-      );
+      fastify.log.error({ err: error }, 'Failed to reconcile pending payments');
     });
 }, RECONCILE_INTERVAL_MS);
 reconcileTimer.unref();

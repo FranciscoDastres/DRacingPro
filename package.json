@@ -24,6 +24,7 @@
     "db:generate": "pnpm --filter @dracing/database generate",
     "db:introspect": "pnpm --filter @dracing/database introspect",
     "db:migrate": "docker compose run --rm migrate",
+    "db:migrate:deploy": "pnpm --filter @dracing/database migrate",
     "dev:up": "docker compose up --build",
     "dev:status": "docker compose ps"
   },

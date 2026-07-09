@@ -14,6 +14,7 @@ RUN pnpm install --frozen-lockfile
 COPY apps/backend apps/backend
 COPY packages/contracts packages/contracts
 COPY packages/database packages/database
+COPY database/migrations database/migrations
 
 RUN pnpm --filter @dracing/contracts build \
     && pnpm --filter @dracing/database build \
@@ -32,6 +33,10 @@ COPY --from=build /app/apps/backend/dist ./apps/backend/dist
 COPY --from=build /app/packages/contracts ./packages/contracts
 COPY --from=build /app/packages/database/package.json ./packages/database/package.json
 COPY --from=build /app/packages/database/dist ./packages/database/dist
+# Migraciones + runner para ejecutarlas desde el contenedor (pre-deploy de
+# Render o shell) sin depender de psql.
+COPY --from=build /app/packages/database/scripts ./packages/database/scripts
+COPY --from=build /app/database/migrations ./database/migrations
 
 USER node
 EXPOSE 3000
