@@ -30,6 +30,26 @@ describe('parseEnvironment in production', () => {
     expect(env.SESSION_SECRET).toBe(productionBase.SESSION_SECRET);
     expect(env.COOKIE_SECURE).toBe(true);
   });
+
+  it('rejects a partial Cloudinary configuration', () => {
+    expect(() =>
+      parseEnvironment({
+        ...productionBase,
+        CLOUDINARY_CLOUD_NAME: 'dracing-pro',
+      }),
+    ).toThrow(/CLOUDINARY_CLOUD_NAME/);
+  });
+
+  it('accepts a complete Cloudinary configuration', () => {
+    const env = parseEnvironment({
+      ...productionBase,
+      CLOUDINARY_API_KEY: 'cloudinary-api-key',
+      CLOUDINARY_API_SECRET: 'cloudinary-api-secret',
+      CLOUDINARY_CLOUD_NAME: 'dracing-pro',
+    });
+
+    expect(env.CLOUDINARY_FOLDER).toBe('dracing-pro');
+  });
 });
 
 describe('parseEnvironment in development', () => {

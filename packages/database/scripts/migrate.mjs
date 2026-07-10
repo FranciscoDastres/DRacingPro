@@ -1,7 +1,7 @@
 // Aplica database/migrations/*.sql contra DATABASE_URL usando node-postgres,
 // con la misma semántica que infra/docker/run-migrations.sh (tabla
 // schema_migrations, idempotente por nombre de archivo). Pensado para entornos
-// sin psql, como el pre-deploy de Render o la shell del servicio.
+// sin psql; el contenedor de Render lo ejecuta antes de iniciar la API.
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,6 +23,13 @@ const client = new pg.Client({ connectionString: databaseUrl });
 await client.connect();
 
 try {
+  // Supabase via Supavisor session mode keeps this session-level advisory lock
+  // for the lifetime of the connection. It prevents two Render instances from
+  // applying the same migration during a zero-downtime deploy.
+  await client.query(
+    "SELECT pg_advisory_lock(hashtext('dracing_schema_migrations')::bigint)",
+  );
+
   await client.query(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       filename text PRIMARY KEY,
@@ -53,5 +60,10 @@ try {
     ]);
   }
 } finally {
+  await client
+    .query(
+      "SELECT pg_advisory_unlock(hashtext('dracing_schema_migrations')::bigint)",
+    )
+    .catch(() => undefined);
   await client.end();
 }

@@ -30,6 +30,7 @@ COPY --from=build /app/apps/backend/node_modules ./apps/backend/node_modules
 COPY --from=build /app/packages/database/node_modules ./packages/database/node_modules
 COPY --from=build /app/apps/backend/package.json ./apps/backend/package.json
 COPY --from=build /app/apps/backend/dist ./apps/backend/dist
+COPY --from=build /app/apps/backend/docker-entrypoint.sh ./apps/backend/docker-entrypoint.sh
 COPY --from=build /app/packages/contracts ./packages/contracts
 COPY --from=build /app/packages/database/package.json ./packages/database/package.json
 COPY --from=build /app/packages/database/dist ./packages/database/dist
@@ -42,6 +43,6 @@ USER node
 EXPOSE 3000
 
 HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=5 \
-  CMD wget -qO- http://127.0.0.1:3000/health/live || exit 1
+  CMD wget -qO- "http://127.0.0.1:${PORT:-3000}/health/live" || exit 1
 
-CMD ["node", "apps/backend/dist/server.js"]
+CMD ["sh", "apps/backend/docker-entrypoint.sh"]
