@@ -48,8 +48,12 @@ try {
     console.log(`Generated password: ${generatedPassword}`);
 } catch (error) {
   if (error instanceof AdminProvisioningError) {
-    console.error('Administrator was not created: one already exists.');
-    process.exitCode = 1;
+    if (process.env.ADMIN_SKIP_IF_EXISTS === 'true') {
+      console.log('Administrator already exists; skipping provisioning.');
+    } else {
+      console.error('Administrator was not created: one already exists.');
+      process.exitCode = 1;
+    }
   } else {
     throw error;
   }

@@ -51,6 +51,12 @@ const environmentSchema = z
       (value) => (value === '' ? undefined : value),
       z.url().optional(),
     ),
+    // Cloudinary credentials are optional until a media feature is enabled,
+    // but partial configuration is rejected to avoid broken signed uploads.
+    CLOUDINARY_CLOUD_NAME: optionalString,
+    CLOUDINARY_API_KEY: optionalString,
+    CLOUDINARY_API_SECRET: optionalString,
+    CLOUDINARY_FOLDER: z.string().trim().min(1).default('dracing-pro'),
     // WhatsApp coordination provider. Only 'noop' is implemented today; future
     // providers (e.g. 'twilio') are selected here without touching call sites.
     WHATSAPP_PROVIDER: optionalString,
@@ -62,6 +68,21 @@ const environmentSchema = z
     TRUSTED_PROXY: optionalString,
   })
   .superRefine((env, ctx) => {
+    const cloudinaryKeys = [
+      env.CLOUDINARY_CLOUD_NAME,
+      env.CLOUDINARY_API_KEY,
+      env.CLOUDINARY_API_SECRET,
+    ];
+    const configuredCloudinaryKeys = cloudinaryKeys.filter(Boolean).length;
+    if (configuredCloudinaryKeys > 0 && configuredCloudinaryKeys < 3) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['CLOUDINARY_CLOUD_NAME'],
+        message:
+          'CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET must be set together',
+      });
+    }
+
     if (env.NODE_ENV !== 'production') return;
 
     if (env.SESSION_SECRET === INSECURE_DEFAULTS.SESSION_SECRET) {

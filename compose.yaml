@@ -37,10 +37,20 @@ services:
       context: .
       dockerfile: apps/backend/Dockerfile
     environment:
+      ADMIN_DISPLAY_NAME: ${ADMIN_DISPLAY_NAME:-Administrador D Racing Pro}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       API_ORIGIN: http://localhost:${API_PORT:-3300}
       APP_ORIGIN: http://localhost:${APP_PORT:-5176}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_FOLDER: ${CLOUDINARY_FOLDER:-dracing-pro}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       DATABASE_URL: postgresql://${POSTGRES_USER:-dracing}:${POSTGRES_PASSWORD:-dracing}@postgres:5432/${POSTGRES_DB:-dracing}
+      FLOW_API_BASE: ${FLOW_API_BASE:-https://sandbox.flow.cl/api}
+      FLOW_API_KEY: ${FLOW_API_KEY:-}
+      FLOW_SECRET_KEY: ${FLOW_SECRET_KEY:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:3300/v1/auth/google/callback}

@@ -1,14 +1,6 @@
 # Blueprint de Render para el backend (https://render.com/docs/blueprint-spec).
-# El frontend vive en Vercel y llega a esta API vía rewrites (apps/frontend/vercel.json).
+# El frontend vive en Vercel, PostgreSQL en Supabase y los medios en Cloudinary.
 # Guía completa de despliegue: docs/deploy-render.md
-
-databases:
-  - name: dracing-db
-    plan: free
-    databaseName: dracing
-    user: dracing
-    # Sin acceso externo por defecto; para correr migraciones desde tu máquina
-    # agrega tu IP en el dashboard o usa la shell del servicio.
 
 services:
   - type: web
@@ -18,9 +10,7 @@ services:
     dockerfilePath: ./apps/backend/Dockerfile
     dockerContext: .
     healthCheckPath: /health/ready
-    # En planes pagos, descomenta para aplicar migraciones antes de cada deploy.
-    # En el plan free ejecútalas manualmente: docs/deploy-render.md#migraciones
-    # preDeployCommand: node packages/database/scripts/migrate.mjs
+    autoDeployTrigger: checksPass
     envVars:
       - key: NODE_ENV
         value: production
@@ -30,24 +20,26 @@ services:
         value: America/Santiago
       - key: SESSION_SECRET
         generateValue: true
+      # Session pooler de Supabase: IPv4, puerto 5432. No usar el pooler de
+      # transacciones 6543 porque las migraciones toman un advisory lock.
       - key: DATABASE_URL
-        fromDatabase:
-          name: dracing-db
-          property: connectionString
-      # Origen público de la app (dominio de Vercel), p. ej. https://dracingpro.vercel.app
+        sync: false
       - key: APP_ORIGIN
-        sync: false
-      # Origen público de la API. Con rewrites de Vercel es el MISMO dominio de Vercel,
-      # porque el navegador y Flow llegan a /v1 a través del proxy.
+        value: https://d-racing-pro-frontend.vercel.app
       - key: API_ORIGIN
-        sync: false
-      # OAuth de Google: el redirect debe pasar por el dominio de Vercel,
-      # p. ej. https://dracingpro.vercel.app/v1/auth/google/callback
+        value: https://d-racing-pro-frontend.vercel.app
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: GOOGLE_CLIENT_SECRET
         sync: false
       - key: GOOGLE_REDIRECT_URI
+        value: https://d-racing-pro-frontend.vercel.app/v1/auth/google/callback
+      # Bootstrap idempotente del único administrador local.
+      - key: ADMIN_DISPLAY_NAME
+        value: Administrador D Racing Pro
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
         sync: false
       # Flow: sandbox por defecto; cambiar a https://www.flow.cl/api al pasar a producción.
       - key: FLOW_API_BASE
@@ -56,3 +48,13 @@ services:
         sync: false
       - key: FLOW_SECRET_KEY
         sync: false
+      # Cloudinary queda listo para imágenes/archivos. El secret nunca llega
+      # al frontend ni se incluye en variables VITE_*.
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: CLOUDINARY_FOLDER
+        value: dracing-pro
