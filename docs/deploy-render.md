@@ -104,8 +104,12 @@ dos métodos de login y una reserva con pago sandbox.
 - El web service gratuito de Render se duerme después de 15 minutos sin
   tráfico; el primer request puede tardar cerca de un minuto.
 - Los timers de reconciliación de Flow y expiración de holds no corren mientras
-  Render está dormido. Para operación comercial continua se necesita una
-  instancia que no haga spin-down.
+  Render está dormido. Al despertar, el backend ejecuta ambas tareas de
+  mantenimiento inmediatamente y después retoma sus intervalos normales.
+- No usar pings artificiales para impedir el spin-down: evadir las restricciones
+  del plan gratuito puede provocar la suspensión de la cuenta según la
+  [Acceptable Use Policy de Render](https://render.com/acceptable-use). Para
+  latencia continua se necesita una instancia que no haga spin-down.
 - Revisar los límites, pausado y backups del plan de Supabase elegido antes de
   tratarlo como producción definitiva.
 - Detrás de Vercel y Render hay dos proxies. El default conservador de

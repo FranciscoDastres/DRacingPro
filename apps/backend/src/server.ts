@@ -94,37 +94,49 @@ const app = await buildApp({
 });
 const fastify = app.getHttpAdapter().getInstance();
 
+async function reconcilePayments(): Promise<void> {
+  try {
+    const confirmed = await paymentService.reconcilePendingPayments();
+    if (confirmed > 0) {
+      fastify.log.info({ confirmed }, 'Reconciled paid payments from Flow');
+    }
+  } catch (error: unknown) {
+    fastify.log.error({ err: error }, 'Failed to reconcile pending payments');
+  }
+}
+
+async function expirePaymentHolds(): Promise<void> {
+  try {
+    const released = await paymentService.expireStaleHolds();
+    if (released > 0) {
+      fastify.log.info({ released }, 'Released expired payment holds');
+    }
+  } catch (error: unknown) {
+    fastify.log.error({ err: error }, 'Failed to expire payment holds');
+  }
+}
+
+async function catchUpPaymentMaintenance(): Promise<void> {
+  // Render Free can suspend the process while idle. Run both maintenance
+  // passes immediately after every cold start so payment and slot state catches
+  // up without waiting for the first recurring interval.
+  await reconcilePayments();
+  await expirePaymentHolds();
+}
+
 // Periodically reconcile open payments against Flow so a lost webhook still
 // confirms a paid booking (defense in depth). Runs before expiry on its own
 // cadence so customers see confirmation even while the hold is still valid.
 const RECONCILE_INTERVAL_MS = 3 * 60_000;
 const reconcileTimer = setInterval(() => {
-  paymentService
-    .reconcilePendingPayments()
-    .then((confirmed) => {
-      if (confirmed > 0) {
-        fastify.log.info({ confirmed }, 'Reconciled paid payments from Flow');
-      }
-    })
-    .catch((error: unknown) => {
-      fastify.log.error({ err: error }, 'Failed to reconcile pending payments');
-    });
+  void reconcilePayments();
 }, RECONCILE_INTERVAL_MS);
 reconcileTimer.unref();
 
 // Periodically release slots whose payment hold elapsed without confirmation.
 const EXPIRY_INTERVAL_MS = 5 * 60_000;
 const expiryTimer = setInterval(() => {
-  paymentService
-    .expireStaleHolds()
-    .then((released) => {
-      if (released > 0) {
-        fastify.log.info({ released }, 'Released expired payment holds');
-      }
-    })
-    .catch((error: unknown) => {
-      fastify.log.error({ err: error }, 'Failed to expire payment holds');
-    });
+  void expirePaymentHolds();
 }, EXPIRY_INTERVAL_MS);
 expiryTimer.unref();
 
@@ -161,6 +173,7 @@ process.once('SIGTERM', () => void shutdown('SIGTERM'));
 
 try {
   await app.listen({ host: environment.HOST, port: environment.PORT });
+  void catchUpPaymentMaintenance();
 } catch (error) {
   fastify.log.error(error);
   await app.close();
