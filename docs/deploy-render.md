@@ -23,7 +23,10 @@ El frontend llama a la API con rutas relativas y la sesión usa cookies
 ## Pasos
 
 1. **Crear el proyecto de Supabase** y copiar desde Connect la cadena del
-   **Session pooler** (IPv4, puerto `5432`). Mantener `sslmode=require`.
+   **Session pooler** (IPv4, puerto `5432`). Agregar al final
+   `?sslmode=require&uselibpqcompat=true`: sin `uselibpqcompat`, node-postgres
+   moderno trata `require` como `verify-full` y rechaza la CA propia de
+   Supabase con `SELF_SIGNED_CERT_IN_CHAIN`.
 2. **Crear el entorno de Cloudinary** y obtener Cloud Name, API Key y API
    Secret desde Console Settings → API Keys.
 3. **Crear el backend en Render** con el Blueprint (`render.yaml` en la raíz):
@@ -33,8 +36,8 @@ El frontend llama a la API con rutas relativas y la sesión usa cookies
    `DATABASE_URL` con la URL de Supabase.
 5. **Desplegar el Blueprint**. El contenedor aplica las migraciones antes de
    abrir el puerto y crea el administrador inicial si todavía no existe.
-6. **Confirmar la URL de Render**. Si no es
-   `https://dracing-backend.onrender.com`, actualizar
+6. **Confirmar la URL de Render**. La URL asignada al servicio es
+   `https://dracingpro.onrender.com`; si cambia, actualizar
    `apps/frontend/vercel.json` y redesplegar Vercel.
 7. **Google OAuth**: agregar
    `https://d-racing-pro-frontend.vercel.app/v1/auth/google/callback` como URI
@@ -50,7 +53,7 @@ El frontend llama a la API con rutas relativas y la sesión usa cookies
 | `COOKIE_SECURE`         | `true`                                                             | blueprint |
 | `TZ`                    | `America/Santiago`                                                 | blueprint |
 | `SESSION_SECRET`        | generada por Render                                                | blueprint |
-| `DATABASE_URL`          | Supabase Session pooler `:5432` con `sslmode=require`              | manual    |
+| `DATABASE_URL`          | Supabase Session pooler `:5432` + `sslmode=require&uselibpqcompat=true` | manual |
 | `APP_ORIGIN`            | `https://d-racing-pro-frontend.vercel.app`                         | blueprint |
 | `API_ORIGIN`            | `https://d-racing-pro-frontend.vercel.app`                         | blueprint |
 | `GOOGLE_CLIENT_ID`      | credencial de Google Cloud                                         | manual    |
@@ -95,8 +98,8 @@ ni respuestas HTTP.
 ## Verificación post-deploy
 
 ```bash
-curl https://dracing-backend.onrender.com/health/live
-curl https://dracing-backend.onrender.com/health/ready
+curl https://dracingpro.onrender.com/health/live
+curl https://dracingpro.onrender.com/health/ready
 curl https://d-racing-pro-frontend.vercel.app/health/ready
 ```
 

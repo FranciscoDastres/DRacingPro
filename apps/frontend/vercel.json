@@ -3,11 +3,11 @@
   "rewrites": [
     {
       "source": "/v1/:path*",
-      "destination": "https://dracing-backend.onrender.com/v1/:path*"
+      "destination": "https://dracingpro.onrender.com/v1/:path*"
     },
     {
       "source": "/health/:path*",
-      "destination": "https://dracing-backend.onrender.com/health/:path*"
+      "destination": "https://dracingpro.onrender.com/health/:path*"
     },
     {
       "source": "/:path*",
