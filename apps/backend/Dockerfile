@@ -1,4 +1,4 @@
-FROM node:20-alpine AS build
+FROM node:24.18.0-alpine AS build
 
 RUN corepack enable
 WORKDIR /app
@@ -20,7 +20,7 @@ RUN pnpm --filter @dracing/contracts build \
     && pnpm --filter @dracing/database build \
     && pnpm --filter @dracing/backend build
 
-FROM node:20-alpine AS runtime
+FROM node:24.18.0-alpine AS runtime
 
 ENV NODE_ENV=production
 WORKDIR /app
