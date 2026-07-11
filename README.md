@@ -30,7 +30,7 @@ La primera migración propuesta está en
 
 ## Desarrollo local
 
-Requisitos: Node.js 20.19+, pnpm 10 y Docker con Compose.
+Requisitos: Node.js 24.18 LTS, pnpm 10 y Docker con Compose.
 
 ```bash
 cp .env.example .env
