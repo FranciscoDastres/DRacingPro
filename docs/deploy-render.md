@@ -8,7 +8,7 @@ navegador ──► Vercel (frontend estático + rewrites)
                  ├── /health/* ──► Render (dracing-backend)
                  └── /*        ──► index.html (SPA)
 Render backend ──► Supabase PostgreSQL (Supavisor Session pooler)
-Render backend ──► Cloudinary API (imágenes y archivos)
+Render backend ──► Cloudinary API (imágenes y archivos; configuración preparada)
 ```
 
 El frontend llama a la API con rutas relativas y la sesión usa cookies
@@ -84,9 +84,13 @@ Después de migrar, el entrypoint crea el administrador cuando existen
 `ADMIN_EMAIL` y `ADMIN_PASSWORD`. En arranques posteriores detecta la cuenta y
 no reemplaza el hash ni crea una segunda.
 
-Cloudinary almacena medios; Supabase almacena usuarios, sesiones, motos, citas,
-pagos y reportes. `CLOUDINARY_API_SECRET` nunca se expone en variables
-`VITE_*`, código cliente ni respuestas HTTP.
+Cloudinary queda como configuración preparada para medios: el backend valida
+que sus tres credenciales existan juntas, pero todavía no hay ninguna
+funcionalidad del producto que suba archivos (no hay SDK ni ruta de upload).
+Las variables son opcionales hasta que esa funcionalidad exista. Supabase
+almacena usuarios, sesiones, motos, citas, pagos y reportes.
+`CLOUDINARY_API_SECRET` nunca se expone en variables `VITE_*`, código cliente
+ni respuestas HTTP.
 
 ## Verificación post-deploy
 
