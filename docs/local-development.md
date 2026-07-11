@@ -5,7 +5,7 @@ acceso de desarrollo (sin Google) y el flujo de agendamiento.
 
 ## Requisitos
 
-- Node.js 20.19+
+- Node.js 24.18 LTS
 - pnpm 10
 - Docker con Compose (para PostgreSQL)
 
